@@ -13,11 +13,21 @@ And to print the XML representation of this code to STDOUT.
 
 The solution for the 1. task is split into 3 scripts (`parse.php, analyzer.php and generator.php`) and
 their functionality will be described later on. To write the correct representation of the code `XMLWriter` 
-is used. If the argument `--help` is set the script will print help and exit.
+is used. The script has one optional parametr `--help`, which prints help and then the program exits.
 
 ### parse.php
-This is the main srcipt. 
+
+This is the main script. The input is read line by line from STDIN and processed in a while loop. First function
+`proccess_line` is called. This function removes possible commentary and replaces all white characters wiht one
+space. The I check if correct IPPcode22 header is present. 
 
 ### analyzer.php
 
+This script contains function and regular expressions for syntax and lexical analysis. For every instruction
+argument (`<var>, <symb>, <type>, <label>`) is function and regular expression which check if the arguments 
+are correct. For the proper control I use built in function `preg_match` if the expression is incorrect the 
+program will exit with syntax error 23.
+
 ### generator.php
+
+
