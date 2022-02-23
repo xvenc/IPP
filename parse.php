@@ -178,7 +178,7 @@ while(($line = fgets(STDIN)) !== FALSE) {
         case "EQ":
         case "AND":
         case "OR":
-        case "STR2INT":
+        case "STRI2INT":
         case "CONCAT":
         case "GETCHAR":
         case "SETCHAR":

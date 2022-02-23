@@ -8,7 +8,7 @@ GREEN='\033[0;32m'
 CYAN='\033[0;36m'
 
 TESTS='tests/ipp-2022-tests'
-PARSE_TESTS="$TESTS/parse-only"
+PARSE_TESTS="$TESTS/parse-only/"
 JEXAMXML_PATH="$TESTS/jexamxml.jar"
 JEXAMXML_OPT_PATH="$TESTS"
 
