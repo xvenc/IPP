@@ -175,50 +175,114 @@ def find_labels(instructions_l) -> dict:
     return labels
 
 
-# TODO read from frame
+# read from frame
+def read_from_frame(arg, frames):
+    data = None
+    if arg.typ == "var":
+        frame = arg.value.split("@",1)[0]
+        var_name = arg.value.split("@",1)[1]
+        if frame == 'GF':
+            if var_name in frames.GF:
+                data = frames.GF[var_name]
+            else:
+                sys.stderr.write(f"Var {var_name} not in GF\n")
+                exit(54)
+        elif frame == 'TF':
+            if (frames.TF != None):
+                if var_name in frames.TF:
+                    data = frames.TF[var_name]
+                else:
+                    sys.stderr.write(f"Var {var_name} not in TF\n")
+                    exit(54)
+            else:
+                sys.stderr.write(f"LF doesnt exist\n")
+                exit(55)
 
+        elif frame == "LF":
+            if (len(frames.LF) != 0):
+                if var_name in frames.LF[-1]:
+                    data = frames.LF[-1][var_name]
+                else:
+                    sys.stderr.write(f"Var {var_name} not in LF\n")
+                    exit(54)
+            else:
+                    sys.stderr.write(f"LF doesnt exist\n")
+                    exit(55)
+        else:
+            sys.stderr.write(f"Given frame '{frame}' dont exist\n")
+            sys.exit(55)
 
-# TODO write to frame
+    elif arg.typ == 'string':
+        data = str(arg.value)
+    elif arg.typ == 'int':
+        data = int(arg.value)
+    elif arg.typ == 'bool':
+        data = arg.value == "true"
+    elif arg.typ == 'nil':
+        data = 'nil'
+
+    return data
+
+# function to write data to frame
+def write_to_frame(data_to_write, argument, frames):
+
+    if argument.typ == 'var':
+        frame = argument.value.split("@",1)[0]
+        var_name = argument.value.split("@",1)[1]
+        if frame == 'GF':
+            frames.GF[var_name] = data_to_write
+        elif frame == 'TF':
+            if (frames.TF != None):
+                frames.TF[var_name] = data_to_write
+        elif frame == "LF":
+            frames.LF[-1][var_name] = data_to_write
+        else:
+            sys.stderr.write(f"Given frame '{frame}' dont exist\n")
+            sys.exit(55)
+
+# function to get index of label to which will be jumped
+def get_label_index(argument, labels) -> int:
+    index = 0
+    label_name = argument.value
+    if (label_name in labels):
+        index = labels[label_name]
+    else:
+        sys.stderr.write(f"Label {label_name} doesnt exist\n")
+        exit(55)
+    return index
+
+def print_frame(frame, info : str):
+    print('\n',info)
+    for var in frame:
+        print(f'INFO: Variable: {var} contains: {frame[var]}')
 
 # TODO interpret
 def interpret(instructions_l, labels):
     # GF = {}
     # LF = []
     # TF = None 
-    frames = Frames()
-    index = 0
-    instruction = None
-    frame = None
-    var_name = None
-    data_to_write = None
-    data_from_frame = None
-    label_name = None
-
+    frames = Frames() # all frames
+    index = 0 # index of currently processed instruction
+    instruction = None # currently processed instruction
+    # frame = None # name of frame with which the instruction works
+    # var_name = None # variable name from on of the frames
+    data_to_write = None # data to write to the frame
+    data_from_frame = None # data read from the frame
+    label_name = None # name of the label to jump to
+    executed_instructions = 0
     while index < len(instructions_l):
         instruction = instructions_l[index]
         index += 1
-
+        executed_instructions += 1
         if instruction.opcode == 'MOVE':
-            if instruction.arguments[1].typ == 'string':
-                data_to_write = instruction.arguments[1].value
-            elif instruction.arguments[1].typ == 'int':
-                data_to_write = int(instruction.arguments[1].value)
-                # TODO rest
 
-            if instruction.arguments[0].typ == 'var':
-                frame = instruction.arguments[0].value.split("@",1)[0]
-                var_name = instruction.arguments[0].value.split("@",1)[1]
-                if frame == 'GF':
-                    frames.GF[var_name] = data_to_write
-                elif frame == 'TF':
-                    if (frames.TF != None):
-                        frames.TF[var_name] = data_to_write
-                elif frame == "LF":
-                    frames.LF[-1][var_name] = data_to_write
+            data_to_write = read_from_frame(instruction.arguments[1], frames)
+            write_to_frame(data_to_write, instruction.arguments[0], frames)
 
         elif instruction.opcode == 'CREATEFRAME':
-            # TODO CREATEFRAME
-            pass
+
+            frames.create_tf()
+
         elif instruction.opcode == 'PUSHFRAME':
             # TODO PUSHFRAME
             pass
@@ -226,17 +290,9 @@ def interpret(instructions_l, labels):
             # TODO POPFRAME
             pass
         elif instruction.opcode == 'DEFVAR':
-            if instruction.arguments[0].typ == 'var':
-                frame = instruction.arguments[0].value.split("@",1)[0]
-                var_name = instruction.arguments[0].value.split("@",1)[1]
-                data_to_write = None
-                if frame == "GF":
-                    frames.GF[var_name] = data_to_write
-                elif frame == "LF":
-                    frames.LF[-1][var_name] = data_to_write
-                elif frame == "TF":
-                    if (frames.TF != None):
-                        frames.TF[var_name] = data_to_write
+
+            data_to_write = None
+            write_to_frame(data_to_write, instruction.arguments[0], frames)
 
         elif instruction.opcode == 'CALL':
             # TODO CALL
@@ -290,25 +346,18 @@ def interpret(instructions_l, labels):
             # TODO READ
             pass
         elif instruction.opcode == 'WRITE':
-            # TODO WRITE
-            if instruction.arguments[0].typ == 'var':
-                frame = instruction.arguments[0].value.split("@",1)[0]
-                var_name = instruction.arguments[0].value.split("@",1)[1]
-                if frame == 'GF':
-                    data_from_frame = frames.GF[var_name]
-                elif frame == 'TF':
-                    if (frames.TF != None):
-                      data_from_frame = frames.TF[var_name]
-                elif frame == "LF":
-                   data_from_frame =frames.LF[-1][var_name]
-            elif instruction.arguments[0].typ == "string":
-                data_from_frame = instruction.arguments[0].value
 
-                # print(instruction.arguments[0].typ)
-            print(data_from_frame)
+            data_from_frame = read_from_frame(instruction.arguments[0], frames)
+            print(data_from_frame, end="")
+
         elif instruction.opcode == 'CONCAT':
             # TODO CONCAT
-            pass
+            data_first = read_from_frame(instruction.arguments[1], frames)
+            data_second = read_from_frame(instruction.arguments[2], frames)
+            if type(data_first) == str and type(data_second) == str:
+                data_to_write = str(data_first) + str(data_second)
+            write_to_frame(data_to_write, instruction.arguments[0], frames)
+
         elif instruction.opcode == 'STRLEN':
             # TODO STRLEN
             pass
@@ -325,14 +374,16 @@ def interpret(instructions_l, labels):
             # TODO LABEL
             pass
         elif instruction.opcode == 'JUMP':
-            label_name = instruction.arguments[0].value
-            if (label_name in labels):
-                index = labels[label_name]
-            else:
-                exit(55)
+
+            index = get_label_index(instruction.arguments[0],labels)
+
         elif instruction.opcode == 'JUMPIFEQ':
-            # TODO JUMPIFEQ
-            pass
+            data_first = read_from_frame(instruction.arguments[1], frames)
+            data_second = read_from_frame(instruction.arguments[2], frames)
+
+            if type(data_first) == type(data_second) and data_first == data_second:
+                index = get_label_index(instruction.arguments[0], labels)
+
         elif instruction.opcode == 'JUMPIFNEQ':
             # TODO JUMPIFNEQ
             pass
@@ -344,10 +395,13 @@ def interpret(instructions_l, labels):
             pass
         elif instruction.opcode == 'BREAK':
             # TODO BREAK
-            pass
-
-
-
+            sys.stderr.write(f"Index of current instruction: {index}\n")
+            sys.stderr.write(f"Number of executed instructions: {executed_instructions}\n")
+            sys.stderr.write(f"Global frame: {frames.GF}\n")
+            sys.stderr.write(f"Local frame: {frames.LF}\n")
+            sys.stderr.write(f"Temporary frame: {frames.TF}\n")
+    # debug
+    #print_frame(frames.GF, "GF:")
 ###############################################
 ## MAIN CODE
 input_f, source_f = check_args()

@@ -40,3 +40,6 @@ class Frames:
         self.GF = {}
         self.LF = []
         self.TF = None
+
+    def create_tf(self):
+        self.TF = dict()
