@@ -1,38 +1,9 @@
 import xml.etree.ElementTree as ET
 import sys, getopt
 import re
+from instruction_argument import *
 
-correct_instructions = {"RETURN" : 0, "BREAK" : 0, "CREATEFRAME" : 0, "PUSHFRAME" : 0, "POPFRAME" : 0,
-                        "CALL" : 1, "LABEL" : 1, "JUMP" : 1, "PUSHS" : 1, "WRITE" : 1, "EXIT" : 1,
-                        "DPRINT" : 1, "DEFVAR" : 1, "POPS" : 1, "MOVE" : 2, "INT2CHAR" : 1, "TYPE" : 2,
-                        "STRLEN" : 2, "NOT" : 2, "READ": 2, "ADD" : 3, "SUB" : 3, "MUL" : 3, "IDIV" : 3,
-                        "LT" : 3, "GT" : 3, "EQ" : 3, "AND" : 3, "OR" : 3, "STRI2INT" : 3, "CONCAT" : 3,
-                        "GETCHAR" : 3, "SETCHAR" : 3, "JUMPIFEQ" : 3, "JUMPIFNEQ" : 3}
-
-class Instruction:
-
-    def __init__(self, name : str, argument : list, order):
-        self.name = name.upper()
-        self.arguments = argument
-        self.order = int(order)
-
-    # for better debug
-    def __str__(self):
-        return str(self.order) + ". " + self.name + " " + " ".join(str(i) for i in self.arguments)
-
-class Argument:
-
-    def __init__(self, typ, value, order : int):
-        self.typ = typ
-        if (value != None):
-            self.value = value
-        else:
-            self.value = ""
-        self.order = int(order)
-
-    # for better debug
-    def __str__(self):
-        return self.value
+# TODO class frame to store variables
 
 def help():
     print("Usage: \tpython3 iterpret.py [--help] [--source=file , --input=file]")
@@ -90,6 +61,7 @@ def read_lines(file):
     data = [l.strip() for l in data]
     return data
 
+# check if xml input file has correct format
 def check_xml_elements(root, correct_instructions):
      # CHECK if root has program attrib
     if (root.tag != "program"):
@@ -98,7 +70,7 @@ def check_xml_elements(root, correct_instructions):
 
     # loop through instructions
     for child in root:
-        instr = child.get("opcode")
+        instr = child.get("opcode").upper()
         # check if only instructions are present
         if (instr not in correct_instructions):
             sys.stderr.write("Wrong instruction name\n")
@@ -188,7 +160,193 @@ def replace_escape(instructions_l) -> list:
 # find labels
 def find_labels(instructions_l) -> dict:
     labels = {}
+    position = 0
+    used_labels = []
+    for instr in instructions_l:
+        if instr.opcode == "LABEL":
+            label_name = str(instr.arguments[0])
+            if label_name not in used_labels:
+                labels[label_name] = position
+                used_labels.append(label_name)
+            else:
+                sys.stderr.write(f'Label name {label_name} was already used\n')
+                exit(52)
+        position += 1
     return labels
+
+
+# TODO read from frame
+
+
+# TODO write to frame
+
+# TODO interpret
+def interpret(instructions_l, labels):
+    # GF = {}
+    # LF = []
+    # TF = None 
+    frames = Frames()
+    index = 0
+    instruction = None
+    frame = None
+    var_name = None
+    data_to_write = None
+    data_from_frame = None
+    label_name = None
+
+    while index < len(instructions_l):
+        instruction = instructions_l[index]
+        index += 1
+
+        if instruction.opcode == 'MOVE':
+            if instruction.arguments[1].typ == 'string':
+                data_to_write = instruction.arguments[1].value
+            elif instruction.arguments[1].typ == 'int':
+                data_to_write = int(instruction.arguments[1].value)
+                # TODO rest
+
+            if instruction.arguments[0].typ == 'var':
+                frame = instruction.arguments[0].value.split("@",1)[0]
+                var_name = instruction.arguments[0].value.split("@",1)[1]
+                if frame == 'GF':
+                    frames.GF[var_name] = data_to_write
+                elif frame == 'TF':
+                    if (frames.TF != None):
+                        frames.TF[var_name] = data_to_write
+                elif frame == "LF":
+                    frames.LF[-1][var_name] = data_to_write
+
+        elif instruction.opcode == 'CREATEFRAME':
+            # TODO CREATEFRAME
+            pass
+        elif instruction.opcode == 'PUSHFRAME':
+            # TODO PUSHFRAME
+            pass
+        elif instruction.opcode == 'POPFRAME':
+            # TODO POPFRAME
+            pass
+        elif instruction.opcode == 'DEFVAR':
+            if instruction.arguments[0].typ == 'var':
+                frame = instruction.arguments[0].value.split("@",1)[0]
+                var_name = instruction.arguments[0].value.split("@",1)[1]
+                data_to_write = None
+                if frame == "GF":
+                    frames.GF[var_name] = data_to_write
+                elif frame == "LF":
+                    frames.LF[-1][var_name] = data_to_write
+                elif frame == "TF":
+                    if (frames.TF != None):
+                        frames.TF[var_name] = data_to_write
+
+        elif instruction.opcode == 'CALL':
+            # TODO CALL
+            pass
+        elif instruction.opcode == 'RETURN':
+            # TODO RETURN
+            pass
+        elif instruction.opcode == 'PUSHS':
+            # TODO PUSHS
+            pass
+        elif instruction.opcode == 'POPS':
+            # TODO POPS
+            pass
+        elif instruction.opcode == 'ADD':
+            # TODO ADD
+            pass
+        elif instruction.opcode == 'SUB':
+            # TODO SUB
+            pass
+        elif instruction.opcode == 'IDIV':
+            # TODO IDIV
+            pass
+        elif instruction.opcode == 'MUL':
+            # TODO MUL
+            pass
+        elif instruction.opcode == 'LT':
+            # TODO LT
+            pass
+        elif instruction.opcode == 'GT':
+            # TODO GT
+            pass
+        elif instruction.opcode == 'EQ':
+            # TODO EQ
+            pass
+        elif instruction.opcode == 'AND':
+            # TODO AND
+            pass
+        elif instruction.opcode == 'OR':
+            # TODO OR
+            pass
+        elif instruction.opcode == 'NOT':
+            # TODO NOT
+            pass
+        elif instruction.opcode == 'INT2CHAR':
+            # TODO INT2CHAR
+            pass
+        elif instruction.opcode == 'STRI2INT':
+            # TODO STRI2INT
+            pass
+        elif instruction.opcode == 'READ':
+            # TODO READ
+            pass
+        elif instruction.opcode == 'WRITE':
+            # TODO WRITE
+            if instruction.arguments[0].typ == 'var':
+                frame = instruction.arguments[0].value.split("@",1)[0]
+                var_name = instruction.arguments[0].value.split("@",1)[1]
+                if frame == 'GF':
+                    data_from_frame = frames.GF[var_name]
+                elif frame == 'TF':
+                    if (frames.TF != None):
+                      data_from_frame = frames.TF[var_name]
+                elif frame == "LF":
+                   data_from_frame =frames.LF[-1][var_name]
+            elif instruction.arguments[0].typ == "string":
+                data_from_frame = instruction.arguments[0].value
+
+                # print(instruction.arguments[0].typ)
+            print(data_from_frame)
+        elif instruction.opcode == 'CONCAT':
+            # TODO CONCAT
+            pass
+        elif instruction.opcode == 'STRLEN':
+            # TODO STRLEN
+            pass
+        elif instruction.opcode == 'GETCHAR':
+            # TODO GETCHAR
+            pass
+        elif instruction.opcode == 'SETCHAR':
+            # TODO SETCHAR
+            pass
+        elif instruction.opcode == 'TYPE':
+            # TODO TYPE
+            pass
+        elif instruction.opcode == 'LABEL':
+            # TODO LABEL
+            pass
+        elif instruction.opcode == 'JUMP':
+            label_name = instruction.arguments[0].value
+            if (label_name in labels):
+                index = labels[label_name]
+            else:
+                exit(55)
+        elif instruction.opcode == 'JUMPIFEQ':
+            # TODO JUMPIFEQ
+            pass
+        elif instruction.opcode == 'JUMPIFNEQ':
+            # TODO JUMPIFNEQ
+            pass
+        elif instruction.opcode == 'EXIT':
+            # TODO EXIT
+            pass
+        elif instruction.opcode == 'DPRINT':
+            # TODO DPRINT
+            pass
+        elif instruction.opcode == 'BREAK':
+            # TODO BREAK
+            pass
+
+
 
 ###############################################
 ## MAIN CODE
@@ -206,5 +364,6 @@ check_xml_elements(root, correct_instructions)
 instructions = read_instructions(root)
 
 replace_escape(instructions)
-
-print_instructions(instructions)
+labels = find_labels(instructions)
+interpret(instructions, labels)
+# print_instructions(instructions)

@@ -28,7 +28,7 @@ function write_instruction_symb(string $text,string $option, string $arg) {
 
     } else {
         // its constatnt
-        $text = explode("@",$text);
+        $text = explode("@",$text,2);
         xmlwriter_start_element($xw, $arg);
         xmlwriter_write_attribute($xw,"type", $text[0]);
         xmlwriter_text($xw, $text[1]);
