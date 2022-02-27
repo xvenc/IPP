@@ -3,14 +3,16 @@ import sys, getopt
 import re
 from instruction_argument import *
 
-# TODO class frame to store variables
-
 def help():
     print("Usage: \tpython3 iterpret.py [--help] [--source=file , --input=file]")
     print("--help:\t Prints help. Cannot be used with other options.")
     print("--input=file: \tInput file with XML representation of source code. If not set, input is read from STDIN.")
     print("--source=file: \tFile with input used for interpretation of the code. If not set, intput read from STDIN")
     print("Atleast one of --source or --input needs to be set.")
+
+def my_exit(message : str, exit_code : int):
+    sys.stderr.write(message)
+    sys.exit(exit_code)
 
 # function to check all arguments
 def check_args():
@@ -32,19 +34,16 @@ def check_args():
             exit(0)
         elif opt == '--help' and len(options) != 1:
             help()
-            sys.stderr.write("--help cant be used with any other argument\n")
-            exit(10)
+            my_exit("--help cant be used with any other argument\n",10)
         if opt == "--source":
             source_f = arg
         elif opt == "--input":
             input_f = arg
 
     if not input_f and not source_f:
-        sys.stderr.write("Atleast one of --source or --input needs to be set\n")
-        exit(10)
+        my_exit("Atleast one of --source or --input needs to be set\n", 10)
     return input_f, source_f
 
-# MBY DONT NEED THIS FUNC
 # read lines from file or from stdin 
 def read_lines(file):
     data = None
@@ -53,8 +52,7 @@ def read_lines(file):
             f = open(file,"r")
             data = f.readlines()
         except:
-            sys.stderr.write(f"Could open file {file}\n")
-            exit(11)
+            my_exit(f"Could open file {file}\n", 11)
     else:
         data = sys.stdin.readlines()
     # remove endlines
@@ -63,58 +61,55 @@ def read_lines(file):
 
 # check if xml input file has correct format
 def check_xml_elements(root, correct_instructions):
-     # CHECK if root has program attrib
+     # check if root has program attrib
     if (root.tag != "program"):
-        sys.stderr.write("Wrong root tag.\n")
-        exit(32)
+        my_exit("Wrong root tag\n", 32)
+
+   # check root attributes 
+    for prog_attrib in root.attrib:
+        if ( prog_attrib not in ('name','language','description') ):
+            my_exit("Wrong element attribute was used, should be 'order' and 'opcode'\n", 32)
+
+    if (root.get("language") != "IPPcode22"):
+        my_exit("Wrong language\n", 32)
 
     # loop through instructions
     for child in root:
-        instr = child.get("opcode").upper()
-        # check if only instructions are present
+        # check if only attributes opcode and order are used
+        for attribute in child.attrib:
+            if ( attribute not in ('opcode','order') ):
+                my_exit("Wrong instruction element attribute was used, should be 'order' and 'opcode'\n", 32)
+        try:
+            instr = child.get("opcode").upper()
+            order = int(child.get("order"))
+        except:
+            my_exit("Opcode or order is not used\n", 32)
+        # check if only correct instructions are present
         if (instr not in correct_instructions):
-            sys.stderr.write("Wrong instruction name\n")
-            exit(32)
+            my_exit("Wrong instruction name\n", 32)
 
         # check if only instruction tag is used
         if ( child.tag != "instruction" ):
-            sys.stderr.write("Wrong element tag, it should be instruction\n")
-            exit(32)
-
-        for attribute in child.attrib:
-            if ( attribute not in ('opcode','order') ):
-                sys.stderr.write("Wrong element attribute was used, should be 'order' or 'opcode'\n")
-                exit(32)
+            my_exit("Wrong element tag, it should be instruction\n", 32)
 
         # loop through instruction arguments
         arg_cnt = 0 # number of instructions in an instruction
-        arg_n = 0 # argument number
         for args in child:
             arg_cnt += 1
             if ( args.tag not in ('arg1','arg2','arg3') ):
-                sys.stderr.write("Invalid arg tag number was used.\n")
-                exit(32)
-            arg_n = re.search(r"\d+(\.\d+)?", args.tag)
-            if arg_n == None:
-                exit(32)
-            arg_n = int(arg_n.group(0))
+                my_exit("Invalid argument tag number was used\n", 32)
 
-        # check instruction has correct number of arguments
         if (arg_cnt != correct_instructions.get(instr)):
-            sys.stderr.write(f"Incorrect argument count for instruction {instr}\n")
-            exit(32)
-        # check if argument number is the same as the amount of arguments
-        elif (arg_n != arg_cnt):
-            sys.stderr.write(f"Instruction {instr} has arg{arg_n} but has only {arg_cnt} arguments\n")
-            exit(32)
+            my_exit(f"Incorrect argument count for instruction {instr}\n", 32)
+
     return
 
 
 # function to read instruction from given xml file
 def read_instructions(root) -> list:
-    instructions_l = []
+    instructions_l = [] # list of all instructions
     for child in root:
-        arguments_l = []
+        arguments_l = [] # list for arguments
         for args in child:
             # get argument number
             arg_n = re.search(r"\d+(\.\d+)?", args.tag)
@@ -128,22 +123,38 @@ def read_instructions(root) -> list:
         # sort arguments
         arguments_l.sort(key= lambda argument : argument.order)
 
+        # check if arguments go one after other
+        index = 1        
+        for arg in arguments_l:
+            if arg.order != index:
+                my_exit(f"Instruction {child} has wrong arguments\n", 32)
+            index += 1
+
         instr = Instruction(child.get("opcode"),arguments_l, child.get("order"))
         instructions_l.append(instr)
-
+       
     # sort instruction through their opcode
     instructions_l.sort(key=lambda instr : instr.order)
     if (instructions_l == None):
         exit(32)
+    # check if instructions are ordered from 1 to n
+    # and if there are no duplicit values
+    prev_order = 0
+    for instr in instructions_l:
+        if instr.order <= prev_order:
+            my_exit(f"Instruction {instr} has wrong order\n", 32)
+        prev_order = instr.order
+
 
     return instructions_l
 
+def check_argument_types(instructions_l):
+    # check if instruction has correct argument types
+    for instr in instructions_l:
+        check = instr.check_instruction()
+        if check == False:
+            my_exit(f"Wrong argument types for instruction {instr}\n", 32)
 
-# debug function
-def print_instructions(instructions_l : list):
-    for inst in instructions_l:
-        print(inst)
-    return
 
 # replace all escape sequencies
 def replace_escape(instructions_l) -> list:
@@ -157,7 +168,7 @@ def replace_escape(instructions_l) -> list:
 
     return instructions_l
 
-# find labels
+# find labels all labels and check if there is no redefinition of a label
 def find_labels(instructions_l) -> dict:
     labels = {}
     position = 0
@@ -169,57 +180,52 @@ def find_labels(instructions_l) -> dict:
                 labels[label_name] = position
                 used_labels.append(label_name)
             else:
-                sys.stderr.write(f'Label name {label_name} was already used\n')
-                exit(52)
+                my_exit(f"Label name {label_name} was already used\n", 52)
         position += 1
     return labels
 
+# function to get index of label to which will be jumped
+def get_label_index(argument, labels) -> int:
+    index = 0
+    label_name = argument.value
+    if (label_name in labels):
+        index = labels[label_name]
+    else:
+        my_exit(f"Label '{label_name}' doesnt exist\n", 52)
+    return index
 
-# read from frame
+
+nil = NIL()
+# read data from frame or directli from instruction if it's constant
 def read_from_frame(arg, frames):
     data = None
     if arg.typ == "var":
         frame = arg.value.split("@",1)[0]
         var_name = arg.value.split("@",1)[1]
-        if frame == 'GF':
-            if var_name in frames.GF:
-                data = frames.GF[var_name]
-            else:
-                sys.stderr.write(f"Var {var_name} not in GF\n")
-                exit(54)
-        elif frame == 'TF':
-            if (frames.TF != None):
-                if var_name in frames.TF:
-                    data = frames.TF[var_name]
-                else:
-                    sys.stderr.write(f"Var {var_name} not in TF\n")
-                    exit(54)
-            else:
-                sys.stderr.write(f"LF doesnt exist\n")
-                exit(55)
-
-        elif frame == "LF":
-            if (len(frames.LF) != 0):
-                if var_name in frames.LF[-1]:
-                    data = frames.LF[-1][var_name]
-                else:
-                    sys.stderr.write(f"Var {var_name} not in LF\n")
-                    exit(54)
-            else:
-                    sys.stderr.write(f"LF doesnt exist\n")
-                    exit(55)
-        else:
-            sys.stderr.write(f"Given frame '{frame}' dont exist\n")
-            sys.exit(55)
-
+        data, code = frames.read_data(var_name, frame)
+        if code == 55:
+            my_exit("Frame doesnt exist\n", code)
+        elif code == 54:
+            my_exit(f"Variable '{var_name}' doesnt exist\n", code)
     elif arg.typ == 'string':
         data = str(arg.value)
     elif arg.typ == 'int':
-        data = int(arg.value)
+        try:
+            data = int(arg.value)
+        except:
+            my_exit("Data can be only integer\n", 57)
     elif arg.typ == 'bool':
-        data = arg.value == "true"
+        if arg.value == "true":
+            data = True
+        else:
+            data = False
     elif arg.typ == 'nil':
-        data = 'nil'
+        if arg.value == 'nil':
+            data = nil
+        else:
+            my_exit("Nil type can only have nil value\n", 52)
+    elif arg.typ == 'type':
+        data = str(arg.value)
 
     return data
 
@@ -229,53 +235,28 @@ def write_to_frame(data_to_write, argument, frames):
     if argument.typ == 'var':
         frame = argument.value.split("@",1)[0]
         var_name = argument.value.split("@",1)[1]
-        if frame == 'GF':
-            frames.GF[var_name] = data_to_write
-        elif frame == 'TF':
-            if (frames.TF != None):
-                frames.TF[var_name] = data_to_write
-        elif frame == "LF":
-            frames.LF[-1][var_name] = data_to_write
-        else:
-            sys.stderr.write(f"Given frame '{frame}' dont exist\n")
-            sys.exit(55)
+        code = frames.write_data(frame, var_name, data_to_write)
+        if code != 0:
+            my_exit(f"Given frame '{frame}' doesnt exist\n", code)
 
-# function to get index of label to which will be jumped
-def get_label_index(argument, labels) -> int:
-    index = 0
-    label_name = argument.value
-    if (label_name in labels):
-        index = labels[label_name]
-    else:
-        sys.stderr.write(f"Label {label_name} doesnt exist\n")
-        exit(55)
-    return index
-
-def print_frame(frame, info : str):
-    print('\n',info)
-    for var in frame:
-        print(f'INFO: Variable: {var} contains: {frame[var]}')
-
-# TODO interpret
 def interpret(instructions_l, labels):
-    # GF = {}
-    # LF = []
-    # TF = None 
+
     frames = Frames() # all frames
     index = 0 # index of currently processed instruction
     instruction = None # currently processed instruction
-    # frame = None # name of frame with which the instruction works
-    # var_name = None # variable name from on of the frames
     data_to_write = None # data to write to the frame
     data_from_frame = None # data read from the frame
-    label_name = None # name of the label to jump to
     executed_instructions = 0
+    nil_type = NIL()
+
     while index < len(instructions_l):
         instruction = instructions_l[index]
         index += 1
         executed_instructions += 1
+
         if instruction.opcode == 'MOVE':
 
+            data_from_frame = read_from_frame(instruction.arguments[0], frames)
             data_to_write = read_from_frame(instruction.arguments[1], frames)
             write_to_frame(data_to_write, instruction.arguments[0], frames)
 
@@ -307,41 +288,162 @@ def interpret(instructions_l, labels):
             # TODO POPS
             pass
         elif instruction.opcode == 'ADD':
-            # TODO ADD
-            pass
+
+            data_from_frame = read_from_frame(instruction.arguments[0], frames)
+
+            data_first = read_from_frame(instruction.arguments[1], frames)
+            data_second = read_from_frame(instruction.arguments[2], frames)
+
+            if type(data_first) != int or type(data_second) != int:
+                my_exit("Wrong operand types\n", 53)
+
+            data_to_write = data_first + data_second
+            write_to_frame(data_to_write, instruction.arguments[0], frames)
+
         elif instruction.opcode == 'SUB':
-            # TODO SUB
-            pass
+            data_from_frame = read_from_frame(instruction.arguments[0], frames)
+
+            data_first = read_from_frame(instruction.arguments[1], frames)
+            data_second = read_from_frame(instruction.arguments[2], frames)
+
+            if type(data_first) != int or type(data_second) != int:
+                my_exit("Wrong operand types\n", 53)
+
+            data_to_write = data_first - data_second
+            write_to_frame(data_to_write, instruction.arguments[0], frames)
+
         elif instruction.opcode == 'IDIV':
-            # TODO IDIV
-            pass
+            data_from_frame = read_from_frame(instruction.arguments[0], frames)
+
+            data_first = read_from_frame(instruction.arguments[1], frames)
+            data_second = read_from_frame(instruction.arguments[2], frames)
+
+            if type(data_first) != int or type(data_second) != int:
+
+                my_exit("Wrong operand types\n", 53)
+            if data_second == 0:
+                my_exit("Zero division error\n", 57)
+
+            data_to_write = data_first // data_second
+            write_to_frame(data_to_write, instruction.arguments[0], frames)
         elif instruction.opcode == 'MUL':
-            # TODO MUL
-            pass
+            data_from_frame = read_from_frame(instruction.arguments[0], frames)
+
+            data_first = read_from_frame(instruction.arguments[1], frames)
+            data_second = read_from_frame(instruction.arguments[2], frames)
+
+            if type(data_first) != int or type(data_second) != int:
+                my_exit("Wrong operand types\n", 53)
+
+            data_to_write = data_first * data_second
+            write_to_frame(data_to_write, instruction.arguments[0], frames)
+
+
         elif instruction.opcode == 'LT':
-            # TODO LT
-            pass
+            data_from_frame = read_from_frame(instruction.arguments[0], frames)
+
+            data_first = read_from_frame(instruction.arguments[1], frames)
+            data_second = read_from_frame(instruction.arguments[2], frames)
+
+            if type(data_first) == type(data_second):
+                data_to_write = data_first < data_second
+            elif type(data_first) == nil_type or type(data_second) == nil_type:
+                my_exit("Wrong operand types\n", 53)
+            else:
+                my_exit("Wrong operand types\n", 53)
+
+            write_to_frame(data_to_write, instruction.arguments[0], frames)
+
+
         elif instruction.opcode == 'GT':
-            # TODO GT
-            pass
+            data_from_frame = read_from_frame(instruction.arguments[0], frames)
+
+            data_first = read_from_frame(instruction.arguments[1], frames)
+            data_second = read_from_frame(instruction.arguments[2], frames)
+
+            if type(data_first) == type(data_second):
+                data_to_write = data_first > data_second
+            elif type(data_first) == nil_type or type(data_second) == nil_type:
+                my_exit("Wrong operand types\n", 53)
+            else:
+                my_exit("Wrong operand types\n", 53)
+
+            write_to_frame(data_to_write, instruction.arguments[0], frames)
+
         elif instruction.opcode == 'EQ':
-            # TODO EQ
-            pass
+            data_from_frame = read_from_frame(instruction.arguments[0], frames)
+
+            data_first = read_from_frame(instruction.arguments[1], frames)
+            data_second = read_from_frame(instruction.arguments[2], frames)
+
+
+            if type(data_first) == type(data_second) or type(data_first) == nil_type or type(data_second) == nil_type:
+                data_to_write = data_first == data_second
+            else:
+                my_exit("Wrong operand types\n", 53)
+
+            write_to_frame(data_to_write, instruction.arguments[0], frames)
+
         elif instruction.opcode == 'AND':
-            # TODO AND
-            pass
+            data_from_frame = read_from_frame(instruction.arguments[0], frames)
+            data_first = read_from_frame(instruction.arguments[1], frames)
+            data_second = read_from_frame(instruction.arguments[2], frames)
+
+            if type(data_first) != bool or type(data_second) != bool:
+                my_exit("Wrong operand types\n", 53)
+            
+            data_to_write = data_first and data_second
+            write_to_frame(data_to_write, instruction.arguments[0], frames)
+
         elif instruction.opcode == 'OR':
-            # TODO OR
-            pass
+            data_from_frame = read_from_frame(instruction.arguments[0], frames)
+            data_first = read_from_frame(instruction.arguments[1], frames)
+            data_second = read_from_frame(instruction.arguments[2], frames)
+
+            if type(data_first) != bool or type(data_second) != bool:
+                my_exit("Wrong operand types\n", 53)
+            
+            data_to_write = data_first or data_second
+            write_to_frame(data_to_write, instruction.arguments[0], frames)
+
         elif instruction.opcode == 'NOT':
-            # TODO NOT
-            pass
+            data_from_frame = read_from_frame(instruction.arguments[0], frames)
+            data_first = read_from_frame(instruction.arguments[1], frames)
+
+            if type(data_first) == bool:
+                data_to_write = not data_first
+            else:
+                my_exit("Wrong operand types\n", 53)
+            
+            write_to_frame(data_to_write, instruction.arguments[0], frames)
+
         elif instruction.opcode == 'INT2CHAR':
-            # TODO INT2CHAR
-            pass
+
+            data_from_frame = read_from_frame(instruction.arguments[0], frames)
+            data_first = read_from_frame(instruction.arguments[1], frames)
+
+            if type(data_first) != int:
+                my_exit("Wrong operand types\n", 53)
+            try:
+                data_to_write = chr(data_first)
+            except ValueError:
+                my_exit("Wrong integer number in instruction INT2CHAR\n", 58)
+            
+            write_to_frame(data_to_write, instruction.arguments[0], frames)
+
         elif instruction.opcode == 'STRI2INT':
-            # TODO STRI2INT
-            pass
+            data_from_frame = read_from_frame(instruction.arguments[0], frames)
+            data_first = read_from_frame(instruction.arguments[1], frames)
+            data_second = read_from_frame(instruction.arguments[2], frames)
+
+            if type(data_first) != str or type(data_second) != int:
+                my_exit("Wrong operand types\n", 53)
+            
+            if data_second < 0 or data_second >= len(data_first):
+                my_exit("Index out of boundaries of the string\n", 58)
+            
+            data_to_write = ord(data_first[data_second])
+
         elif instruction.opcode == 'READ':
             # TODO READ
             pass
@@ -351,28 +453,66 @@ def interpret(instructions_l, labels):
             print(data_from_frame, end="")
 
         elif instruction.opcode == 'CONCAT':
-            # TODO CONCAT
+
+            data_from_frame = read_from_frame(instruction.arguments[0], frames)
             data_first = read_from_frame(instruction.arguments[1], frames)
             data_second = read_from_frame(instruction.arguments[2], frames)
-            if type(data_first) == str and type(data_second) == str:
-                data_to_write = str(data_first) + str(data_second)
+
+            if type(data_first) != str or type(data_second) != str:
+                my_exit("Wrong operand types\n", 53)
+
+            data_to_write = str(data_first) + str(data_second)
             write_to_frame(data_to_write, instruction.arguments[0], frames)
 
         elif instruction.opcode == 'STRLEN':
-            # TODO STRLEN
-            pass
+
+            data_from_frame = read_from_frame(instruction.arguments[0], frames)
+            data_second = read_from_frame(instruction.arguments[1], frames)
+            if ( type(data_second) != str ):
+                my_exit("Wrong operand types\n", 53)
+
+            data_to_write = len(data_second)
+            write_to_frame(data_to_write, instruction.arguments[0], frames) 
         elif instruction.opcode == 'GETCHAR':
-            # TODO GETCHAR
-            pass
+            data_from_frame = read_from_frame(instruction.arguments[0], frames)
+
+            data_first = read_from_frame(instruction.arguments[1], frames)
+            data_second = read_from_frame(instruction.arguments[2], frames)
+            if type(data_first) != str or type(data_second) != int:
+                my_exit("Wrong operand types\n", 53)
+            
+            if data_second < 0 or data_second >= len(data_first):
+                my_exit(f"Index {data_second} out of boundaries of the string\n", 58)
+
+            data_to_write = data_first[data_second]
+
+            write_to_frame(data_to_write, instruction.arguments[0], frames)
+
         elif instruction.opcode == 'SETCHAR':
-            # TODO SETCHAR
-            pass
+
+            data_to_write = read_from_frame(instruction.arguments[0], frames)
+            data_first = read_from_frame(instruction.arguments[1], frames)
+            data_second = read_from_frame(instruction.arguments[2], frames)
+            
+            if type(data_first) != int or type(data_second) != str or type(data_to_write) != str:
+                my_exit("Wrong operand types\n", 53)
+
+            if (data_first < 0 or data_first >= len(data_to_write)):
+                my_exit(f"Index {data_first} out of boundaries of the string\n", 58)
+            
+            data_to_write = list(data_to_write)
+            data_to_write[data_first] = data_second[0]
+            data_to_write = "".join(data_to_write)
+
+            write_to_frame(data_to_write, instruction.arguments[0], frames)
+            
         elif instruction.opcode == 'TYPE':
             # TODO TYPE
             pass
         elif instruction.opcode == 'LABEL':
-            # TODO LABEL
+
             pass
+
         elif instruction.opcode == 'JUMP':
 
             index = get_label_index(instruction.arguments[0],labels)
@@ -381,42 +521,72 @@ def interpret(instructions_l, labels):
             data_first = read_from_frame(instruction.arguments[1], frames)
             data_second = read_from_frame(instruction.arguments[2], frames)
 
-            if type(data_first) == type(data_second) and data_first == data_second:
+            if type(data_first) != type(data_second):
+                my_exit("Wrong operand types\n", 53)
+            if data_first == data_second:
                 index = get_label_index(instruction.arguments[0], labels)
 
         elif instruction.opcode == 'JUMPIFNEQ':
-            # TODO JUMPIFNEQ
-            pass
+
+            data_first = read_from_frame(instruction.arguments[1], frames)
+            data_second = read_from_frame(instruction.arguments[2], frames)
+
+            if type(data_first) != type(data_second):
+                my_exit("Wrong operand types\n", 53)
+
+            if data_first != data_second:
+                index = get_label_index(instruction.arguments[0], labels)
+
         elif instruction.opcode == 'EXIT':
-            # TODO EXIT
-            pass
+
+            data_first = read_from_frame(instruction.arguments[0], frames)
+            if type(data_first) != int:
+                my_exit("Wrong operand types\n", 53)
+            if data_first >= 0 and data_first <= 49:
+                sys.exit(data_first)
+            else:
+                my_exit(f"Invalid exit number value '{data_first}'\n", 57)
+
         elif instruction.opcode == 'DPRINT':
-            # TODO DPRINT
-            pass
+
+            data_first = read_from_frame(instruction.arguments[0], frames)
+            print(data_first,file=sys.stderr,end="")
+
         elif instruction.opcode == 'BREAK':
-            # TODO BREAK
+
             sys.stderr.write(f"Index of current instruction: {index}\n")
             sys.stderr.write(f"Number of executed instructions: {executed_instructions}\n")
             sys.stderr.write(f"Global frame: {frames.GF}\n")
             sys.stderr.write(f"Local frame: {frames.LF}\n")
             sys.stderr.write(f"Temporary frame: {frames.TF}\n")
-    # debug
-    #print_frame(frames.GF, "GF:")
+
+
+# debug functions
+def print_instructions(instructions_l : list):
+    for inst in instructions_l:
+        print(inst)
+    return
+
+def print_frame(frame, info : str):
+    print('\n',info)
+    for var in frame:
+        print(f'INFO: Variable: {var} contains: {frame[var]}')
+
+
+
 ###############################################
 ## MAIN CODE
 input_f, source_f = check_args()
-input_data = read_lines(input_f)
-
+input_data = read_lines(source_f)
 try:
     root = ET.fromstringlist(input_data)
 except:
-    sys.stderr.write("XML file wasnt well-formated.\n")
-    exit(31)
+    my_exit("XML file wasnt well-formated\n", 31)
 
 check_xml_elements(root, correct_instructions)
 
 instructions = read_instructions(root)
-
+check_argument_types(instructions)
 replace_escape(instructions)
 labels = find_labels(instructions)
 interpret(instructions, labels)
