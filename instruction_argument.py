@@ -1,4 +1,5 @@
 import re
+from traceback import print_tb
 
 
 correct_instructions = {"RETURN" : 0, "BREAK" : 0, "CREATEFRAME" : 0, "PUSHFRAME" : 0, "POPFRAME" : 0,
@@ -52,7 +53,6 @@ class Instruction:
         return True        
         
 
-# TODO add check for argument types and values
 class Argument:
 
     def __init__(self, typ, value, order : int):
@@ -100,7 +100,7 @@ class Frames:
         elif frame == 'TF':
             if (self.TF != None):
                 if variable in self.TF:
-                    return self.TF[variable]
+                    return self.TF[variable], 0
                 else:
                     return None, 54
             else:
@@ -108,7 +108,7 @@ class Frames:
         elif frame == "LF":
             if (len(self.LF) != 0):
                 if variable in self.LF[-1]:
-                    return self.LF[-1][variable]
+                    return self.LF[-1][variable], 0
                 else:
                     return None, 54
             else:
@@ -122,8 +122,13 @@ class Frames:
         elif frame == 'TF':
             if (self.TF != None):
                 self.TF[variable] = data_to_write
+            else:
+                return 55
         elif frame == "LF":
-            self.LF[-1][variable] = data_to_write
+            if len(self.TF) != 0:
+                self.LF[-1][variable] = data_to_write
+            else:
+                return 55
         else:
             return 55
         return 0

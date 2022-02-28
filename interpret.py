@@ -130,7 +130,7 @@ def read_instructions(root) -> list:
                 my_exit(f"Instruction {child} has wrong arguments\n", 32)
             index += 1
 
-        instr = Instruction(child.get("opcode"),arguments_l, child.get("order"))
+        instr = Instruction(child.get("opcode").upper(),arguments_l, child.get("order"))
         instructions_l.append(instr)
        
     # sort instruction through their opcode
@@ -238,7 +238,23 @@ def write_to_frame(data_to_write, argument, frames):
         code = frames.write_data(frame, var_name, data_to_write)
         if code != 0:
             my_exit(f"Given frame '{frame}' doesnt exist\n", code)
+    
+    return
 
+def get_type(data) -> str:
+    if data == None:
+        return ""
+    if type(data) == str:
+        return "string"
+    if type(data) == int:
+        return "int"
+    if type(data) == bool:
+        return "bool"
+    if type(data) == nil:
+        return "nil"
+
+
+# TODO refractoring many of the functions use the same read_from_frame etc.
 def interpret(instructions_l, labels):
 
     frames = Frames() # all frames
@@ -246,8 +262,10 @@ def interpret(instructions_l, labels):
     instruction = None # currently processed instruction
     data_to_write = None # data to write to the frame
     data_from_frame = None # data read from the frame
-    executed_instructions = 0
+    executed_instructions = 0 
     nil_type = NIL()
+    data_stack = [] # 'stack' for pushed data
+    call_stack = [] # stack of indexes when call and return functions are used
 
     while index < len(instructions_l):
         instruction = instructions_l[index]
@@ -265,28 +283,50 @@ def interpret(instructions_l, labels):
             frames.create_tf()
 
         elif instruction.opcode == 'PUSHFRAME':
-            # TODO PUSHFRAME
-            pass
+            
+            if frames.TF == None:
+                my_exit("Frame doesnt exist\n",55)
+            
+            frames.LF.append(frames.TF)
+            frames.TF = None
+
         elif instruction.opcode == 'POPFRAME':
-            # TODO POPFRAME
-            pass
+
+            if len(frames.LF) == 0:
+                my_exit("No frame is availible\n", 55)
+            
+            frames.TF = frames.LF.pop()
+
         elif instruction.opcode == 'DEFVAR':
 
             data_to_write = None
             write_to_frame(data_to_write, instruction.arguments[0], frames)
 
         elif instruction.opcode == 'CALL':
-            # TODO CALL
-            pass
+
+            call_stack.append(index)
+            index = get_label_index(instruction.arguments[0], labels)
+
         elif instruction.opcode == 'RETURN':
-            # TODO RETURN
-            pass
+
+            if len(call_stack) == 0:
+                my_exit("Call stack is empty, there is no index\n", 56)
+
+            index = call_stack.pop()
+
         elif instruction.opcode == 'PUSHS':
-            # TODO PUSHS
-            pass
+
+            data_first = read_from_frame(instruction.arguments[0], frames)
+            data_stack.append(data_first)
+
         elif instruction.opcode == 'POPS':
-            # TODO POPS
-            pass
+            if len(data_stack) == 0:
+                my_exit("There is nothing on the stack\n", 56)
+
+            data_from_frame = read_from_frame(instruction.arguments[0], frames)
+            data_to_write = data_stack.pop()
+            write_to_frame(data_to_write, instruction.arguments[0], frames) 
+
         elif instruction.opcode == 'ADD':
 
             data_from_frame = read_from_frame(instruction.arguments[0], frames)
@@ -507,8 +547,12 @@ def interpret(instructions_l, labels):
             write_to_frame(data_to_write, instruction.arguments[0], frames)
             
         elif instruction.opcode == 'TYPE':
-            # TODO TYPE
-            pass
+
+            data_from_frame = read_from_frame(instruction.arguments[0], frames)
+            data_first = read_from_frame(instruction.arguments[1], frames)
+            data_to_write = get_type(data_first)
+            write_to_frame(data_to_write, instruction.arguments[0], frames)
+
         elif instruction.opcode == 'LABEL':
 
             pass

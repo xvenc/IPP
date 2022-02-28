@@ -3,7 +3,7 @@
 * generate.php
 * Solution for 1. task for IPP 2021/2022
 * Author: Václav Korvas VUT FIT 2BIT (xkorva03)
-* Main with definition of functions to genereta xml
+* Script with definition of functions to genereta xml
 * representation of the IPPcode22.
 */
 
