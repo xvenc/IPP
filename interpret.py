@@ -47,7 +47,7 @@ def check_args():
 # read lines from file or from stdin 
 def read_lines(file):
     data = None
-    if input_f != None:
+    if file != None:
         try:
             f = open(file,"r")
             data = f.readlines()
@@ -254,8 +254,8 @@ def get_type(data) -> str:
         return "nil"
 
 
-# TODO refractoring many of the functions use the same read_from_frame etc.
-def interpret(instructions_l, labels):
+# TODO refractoring many of the functions use the same read_from_frame with same arguments etc.
+def interpret(instructions_l, labels, input_f):
 
     frames = Frames() # all frames
     index = 0 # index of currently processed instruction
@@ -266,6 +266,7 @@ def interpret(instructions_l, labels):
     nil_type = NIL()
     data_stack = [] # 'stack' for pushed data
     call_stack = [] # stack of indexes when call and return functions are used
+    first_read = True
 
     while index < len(instructions_l):
         instruction = instructions_l[index]
@@ -485,8 +486,41 @@ def interpret(instructions_l, labels):
             data_to_write = ord(data_first[data_second])
 
         elif instruction.opcode == 'READ':
-            # TODO READ
-            pass
+            data_from_frame = read_from_frame(instruction.arguments[0], frames)
+            data_first = read_from_frame(instruction.arguments[1], frames) 
+
+            if input_f != None:
+                if first_read:
+                    input_data = read_lines(input_f)
+                    first_read = False
+
+                if len(input_data) == 0:
+                    data_to_write = "nil@nil"
+                else:
+                    data_to_write = input_data.pop(0)
+            else:
+                try:
+                    data_to_write = input()
+                except:
+                    data_to_write = "nil@nil"
+            
+            if data_first == "string":
+                data_to_write = str(data_to_write)
+            elif data_first == "int":
+                try:
+                    data_to_write = int(data_to_write)
+                except:
+                    data_to_write = "nil@nil"
+            elif data_first == "bool":
+                if data_to_write.lower() == "true":
+                    data_to_write = "true"
+                else:
+                    data_to_write = "false"
+            else:
+                my_exit("Wrong instruction type for function READ\n", 57)
+
+            write_to_frame(data_to_write, instruction.arguments[0], frames)
+
         elif instruction.opcode == 'WRITE':
 
             data_from_frame = read_from_frame(instruction.arguments[0], frames)
@@ -621,9 +655,9 @@ def print_frame(frame, info : str):
 ###############################################
 ## MAIN CODE
 input_f, source_f = check_args()
-input_data = read_lines(source_f)
+source_data = read_lines(source_f)
 try:
-    root = ET.fromstringlist(input_data)
+    root = ET.fromstringlist(source_data)
 except:
     my_exit("XML file wasnt well-formated\n", 31)
 
@@ -633,5 +667,5 @@ instructions = read_instructions(root)
 check_argument_types(instructions)
 replace_escape(instructions)
 labels = find_labels(instructions)
-interpret(instructions, labels)
+interpret(instructions, labels, input_f)
 # print_instructions(instructions)
