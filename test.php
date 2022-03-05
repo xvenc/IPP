@@ -92,39 +92,62 @@ function parse_arguments() {
     }   
 }
 
-function rc_file_exists ($rc_file, $path) {
-    if (file_exists($path)) {
-
+function all_file_exists ($rc_file, $in_file, $out_file) {
+    if (!file_exists($rc_file)) {
+       $fp = fopen($rc_file, "w");
+       fwrite($fp, "0"); 
+       fclose($fp);
+    }
+    if (!file_exists($in_file)) {
+        $fp = fopen($in_file, "w");
+        fwrite($fp, "");
+        fclose($fp);
+    }
+    if (!file_exists($out_file)) {
+        $fp = fopen($out_file, "w");
+        fwrite($fp, "");
+        fclose($fp);
     }
 }
 
 # MAIN CODE
 
 parse_arguments();
-# if recursive change to recursive directory iterator
+
 if ($recursive == false){
-    $dir = new DirectoryIterator($test_dir);
+    try {
+        $dir = new DirectoryIterator($test_dir);
+    } catch (UnexpectedValueException) {
+        my_exit("Directory doesnt exist\n", 41);
+    }
 
 } else {
-    $dir = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($test_dir));
-    
+    try {
+        $dir = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($test_dir));
+    } catch (UnexpectedValueException) {
+        my_exit("Directory doesnt exist\n", 41);
+    } 
 }
 
 foreach ($dir as $file) {
 
-    if ($file->getExtension() == "src" && !$file->isDot() && ($file->getFilename()[0] != ".")) {
-        // echo $file->getFilename()."\n";
+    if ($file->getExtension() == "src" && ($file->getFilename()[0] != ".")) {
+        echo $file->getFilename()."\n";
         $path = $file->getPathname();
         $path = substr($path, 0, -4);
-        $name = $file->getBasename('.'.$file->getExtension()); 
-        $rc_file = $name.".rc";
-        $in_file = $name.".in";
-        $out_file = $name.".out";
+        $rc_file = $path.".rc";
+        $in_file = $path.".in";
+        $out_file = $path.".out";
 
-        rc_file_exists($rc_file, $path.".rc");
+        //all_file_exists($rc_file, $in_file, $out_file);
         if ($parse_only_set) {
-            # TODO only parse.php tests
+            // TODO only parse.php tests
             
+        } elseif ($int_only_set) {
+            // only interpret tests
+
+        } else {
+            // Both parse and interpret tests
         }
 
 
