@@ -524,7 +524,10 @@ def interpret(instructions_l, labels, input_f):
         elif instruction.opcode == 'WRITE':
 
             data_from_frame = read_from_frame(instruction.arguments[0], frames)
-            print(data_from_frame, end="")
+            if type(data_from_frame) == bool:
+                print(str(data_from_frame).lower(), end="")
+            else:
+                print(data_from_frame, end="")
 
         elif instruction.opcode == 'CONCAT':
 
