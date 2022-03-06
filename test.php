@@ -132,17 +132,45 @@ if ($recursive == false){
 foreach ($dir as $file) {
 
     if ($file->getExtension() == "src" && ($file->getFilename()[0] != ".")) {
-        echo $file->getFilename()."\n";
+        //echo $file->getFilename()."\n";
         $path = $file->getPathname();
         $path = substr($path, 0, -4);
+        
         $rc_file = $path.".rc";
         $in_file = $path.".in";
         $out_file = $path.".out";
+        $tmp_out_file = $path."_tmp.out";
 
-        //all_file_exists($rc_file, $in_file, $out_file);
+        all_file_exists($rc_file, $in_file, $out_file);
         if ($parse_only_set) {
-            // TODO only parse.php tests
-            
+            $parse_ret_code = 0;
+            $exp_ret_code = fgets(fopen($rc_file, 'r'));
+            $my_out = "";
+            $command = "php parse.php < {$path}.src > {$tmp_out_file} 2> /dev/null";
+            exec($command, $junk, $parse_ret_code); 
+           // echo $command;
+
+           // compare exit codes
+            if ($exp_ret_code != 0) {
+                if ($exp_ret_code == $parse_ret_code) {
+                    echo "Passed ".$file."\n";
+                } else {
+                    echo "FAILED ".$file."\n";
+                }
+            } else {
+                // exit code is 0, do XML compare
+                $xml_ret_code = 0;
+                $xml_command = "java -jar {$jex_dir} {$out_file} {$tmp_out_file} tests/ipp-2022-tests/options >/dev/null"; 
+                exec($xml_command, $junk, $xml_ret_code);
+                if ($xml_ret_code != 0) {
+                    echo "FAILED XML ".$file."\n";
+                } else {
+                    echo "Passed ".$file."\n";
+                }
+
+                // TODO Clean up made up files
+            }
+
         } elseif ($int_only_set) {
             // only interpret tests
 
