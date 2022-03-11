@@ -8,8 +8,8 @@
 */
 
 // regexes to used for syntax analyzation
-$reg_bool = "/^bool@(true|false)/";
-$reg_int = "/^int@([+-]?[0-9])+/";
+$reg_bool = "/^bool@(true|false)$/";
+$reg_int = "/^int@([+-]?[0-9])+$/";
 $reg_string = "/^string@([^\\\]|\\\[0-9][0-9][0-9])*$/";
 $reg_nil = "/^nil@nil$/";
 
@@ -34,6 +34,12 @@ function check_var(string $variable) {
 function check_symb(string $symbol) : string {
     global $reg_var, $reg_bool, $reg_int, $reg_nil, $reg_string;
     // check if its constant or variable
+   # if (preg_match("~^int~", $symbol)) {
+   #     $is_int = explode("@",$symbol,2);
+   #     $is_int = intval($is_int[1], 0);
+   #     
+   #     echo $is_int."\n";
+   # }
     if ( preg_match("~^(int|string|bool|nil)~", $symbol) && (preg_match($reg_bool, $symbol) || 
         preg_match($reg_string, $symbol) || 
         preg_match($reg_int, $symbol) || 

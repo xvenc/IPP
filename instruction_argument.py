@@ -1,7 +1,3 @@
-import re
-from traceback import print_tb
-
-
 correct_instructions = {"RETURN" : 0, "BREAK" : 0, "CREATEFRAME" : 0, "PUSHFRAME" : 0, "POPFRAME" : 0,
                         "CALL" : 1, "LABEL" : 1, "JUMP" : 1, "PUSHS" : 1, "WRITE" : 1, "EXIT" : 1,
                         "DPRINT" : 1, "DEFVAR" : 1, "POPS" : 1, "MOVE" : 2, "INT2CHAR" : 2, "TYPE" : 2,
@@ -125,7 +121,7 @@ class Frames:
             else:
                 return 55
         elif frame == "LF":
-            if len(self.TF) != 0:
+            if len(self.LF) != 0:
                 self.LF[-1][variable] = data_to_write
             else:
                 return 55

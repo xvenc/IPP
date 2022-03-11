@@ -195,6 +195,7 @@ def get_label_index(argument, labels) -> int:
     return index
 
 
+
 nil = NIL()
 # read data from frame or directli from instruction if it's constant
 def read_from_frame(arg, frames):
@@ -238,7 +239,6 @@ def write_to_frame(data_to_write, argument, frames):
         code = frames.write_data(frame, var_name, data_to_write)
         if code != 0:
             my_exit(f"Given frame '{frame}' doesnt exist\n", code)
-    
     return
 
 def get_type(data) -> str:
@@ -250,11 +250,11 @@ def get_type(data) -> str:
         return "int"
     if type(data) == bool:
         return "bool"
-    if type(data) == nil:
+    if data == nil:
         return "nil"
 
-
 # TODO refractoring many of the functions use the same read_from_frame with same arguments etc.
+# TODO change variable names to arg1, arg2, arg3 etc.
 def interpret(instructions_l, labels, input_f):
 
     frames = Frames() # all frames
@@ -263,7 +263,7 @@ def interpret(instructions_l, labels, input_f):
     data_to_write = None # data to write to the frame
     data_from_frame = None # data read from the frame
     executed_instructions = 0 
-    nil_type = NIL()
+    nil_type = nil
     data_stack = [] # 'stack' for pushed data
     call_stack = [] # stack of indexes when call and return functions are used
     first_read = True
@@ -277,6 +277,10 @@ def interpret(instructions_l, labels, input_f):
 
             data_from_frame = read_from_frame(instruction.arguments[0], frames)
             data_to_write = read_from_frame(instruction.arguments[1], frames)
+
+            if data_to_write == None:
+                my_exit("MOVE: Missing value\n", 56)
+
             write_to_frame(data_to_write, instruction.arguments[0], frames)
 
         elif instruction.opcode == 'CREATEFRAME':
@@ -284,10 +288,10 @@ def interpret(instructions_l, labels, input_f):
             frames.create_tf()
 
         elif instruction.opcode == 'PUSHFRAME':
-            
+
             if frames.TF == None:
                 my_exit("Frame doesnt exist\n",55)
-            
+
             frames.LF.append(frames.TF)
             frames.TF = None
 
@@ -295,10 +299,19 @@ def interpret(instructions_l, labels, input_f):
 
             if len(frames.LF) == 0:
                 my_exit("No frame is availible\n", 55)
-            
+
             frames.TF = frames.LF.pop()
 
         elif instruction.opcode == 'DEFVAR':
+            # TODO NEW ==> NEED TO OPTIMALIZE, when redefinition of var
+            if instruction.arguments[0].typ == "var":
+                frame = instruction.arguments[0].value.split("@",1)[0]
+                var_name = instruction.arguments[0].value.split("@",1)[1]
+                data, code = frames.read_data(var_name, frame) 
+                if code == 55:
+                    my_exit("Frame doesnt exist\n", code)
+                elif code != 54:
+                    my_exit(f"Variable '{var_name}' already exists\n", 52)
 
             data_to_write = None
             write_to_frame(data_to_write, instruction.arguments[0], frames)
@@ -318,6 +331,8 @@ def interpret(instructions_l, labels, input_f):
         elif instruction.opcode == 'PUSHS':
 
             data_first = read_from_frame(instruction.arguments[0], frames)
+            if data_first == None:
+                my_exit("PUSHS: Missing value\n", 56)
             data_stack.append(data_first)
 
         elif instruction.opcode == 'POPS':
@@ -335,6 +350,8 @@ def interpret(instructions_l, labels, input_f):
             data_first = read_from_frame(instruction.arguments[1], frames)
             data_second = read_from_frame(instruction.arguments[2], frames)
 
+            if data_first == None or data_second == None:
+                my_exit("ADD: Missing value\n", 56);
             if type(data_first) != int or type(data_second) != int:
                 my_exit("Wrong operand types\n", 53)
 
@@ -347,6 +364,9 @@ def interpret(instructions_l, labels, input_f):
             data_first = read_from_frame(instruction.arguments[1], frames)
             data_second = read_from_frame(instruction.arguments[2], frames)
 
+            if data_first == None or data_second == None:
+                my_exit("SUB: Missing value\n", 56);
+            
             if type(data_first) != int or type(data_second) != int:
                 my_exit("Wrong operand types\n", 53)
 
@@ -359,6 +379,10 @@ def interpret(instructions_l, labels, input_f):
             data_first = read_from_frame(instruction.arguments[1], frames)
             data_second = read_from_frame(instruction.arguments[2], frames)
 
+            if data_first == None or data_second == None:
+                my_exit("IDIV: Missing value\n", 56);
+
+
             if type(data_first) != int or type(data_second) != int:
 
                 my_exit("Wrong operand types\n", 53)
@@ -367,11 +391,16 @@ def interpret(instructions_l, labels, input_f):
 
             data_to_write = data_first // data_second
             write_to_frame(data_to_write, instruction.arguments[0], frames)
+
         elif instruction.opcode == 'MUL':
             data_from_frame = read_from_frame(instruction.arguments[0], frames)
 
             data_first = read_from_frame(instruction.arguments[1], frames)
             data_second = read_from_frame(instruction.arguments[2], frames)
+
+            if data_first == None or data_second == None:
+                my_exit("MUL: Missing value\n", 56);
+
 
             if type(data_first) != int or type(data_second) != int:
                 my_exit("Wrong operand types\n", 53)
@@ -386,12 +415,17 @@ def interpret(instructions_l, labels, input_f):
             data_first = read_from_frame(instruction.arguments[1], frames)
             data_second = read_from_frame(instruction.arguments[2], frames)
 
+            if data_first == None or data_second == None:
+                my_exit("EQ: Missing value\n", 56);
+
+            if data_first == nil_type or data_second == nil_type:
+                my_exit("Wrong operand types\n", 53)
+
             if type(data_first) == type(data_second):
                 data_to_write = data_first < data_second
-            elif type(data_first) == nil_type or type(data_second) == nil_type:
-                my_exit("Wrong operand types\n", 53)
             else:
                 my_exit("Wrong operand types\n", 53)
+
 
             write_to_frame(data_to_write, instruction.arguments[0], frames)
 
@@ -402,10 +436,14 @@ def interpret(instructions_l, labels, input_f):
             data_first = read_from_frame(instruction.arguments[1], frames)
             data_second = read_from_frame(instruction.arguments[2], frames)
 
+            if data_first == None or data_second == None:
+                my_exit("GT: Missing value\n", 56);
+            
+            if data_first == nil_type or data_second == nil_type:
+                my_exit("Wrong operand types\n", 53)
+            
             if type(data_first) == type(data_second):
                 data_to_write = data_first > data_second
-            elif type(data_first) == nil_type or type(data_second) == nil_type:
-                my_exit("Wrong operand types\n", 53)
             else:
                 my_exit("Wrong operand types\n", 53)
 
@@ -417,8 +455,10 @@ def interpret(instructions_l, labels, input_f):
             data_first = read_from_frame(instruction.arguments[1], frames)
             data_second = read_from_frame(instruction.arguments[2], frames)
 
+            if data_first == None or data_second == None:
+                my_exit("EQ: Missing value\n", 56);
 
-            if type(data_first) == type(data_second) or type(data_first) == nil_type or type(data_second) == nil_type:
+            if type(data_first) == type(data_second) or data_first == nil or data_second == nil:
                 data_to_write = data_first == data_second
             else:
                 my_exit("Wrong operand types\n", 53)
@@ -429,6 +469,9 @@ def interpret(instructions_l, labels, input_f):
             data_from_frame = read_from_frame(instruction.arguments[0], frames)
             data_first = read_from_frame(instruction.arguments[1], frames)
             data_second = read_from_frame(instruction.arguments[2], frames)
+
+            if data_first == None or data_second == None:
+                my_exit("AND: Missing value\n", 56);
 
             if type(data_first) != bool or type(data_second) != bool:
                 my_exit("Wrong operand types\n", 53)
@@ -441,6 +484,10 @@ def interpret(instructions_l, labels, input_f):
             data_first = read_from_frame(instruction.arguments[1], frames)
             data_second = read_from_frame(instruction.arguments[2], frames)
 
+            if data_first == None or data_second == None:
+                my_exit("IDIV: Missing value\n", 56);
+
+
             if type(data_first) != bool or type(data_second) != bool:
                 my_exit("Wrong operand types\n", 53)
             
@@ -450,6 +497,10 @@ def interpret(instructions_l, labels, input_f):
         elif instruction.opcode == 'NOT':
             data_from_frame = read_from_frame(instruction.arguments[0], frames)
             data_first = read_from_frame(instruction.arguments[1], frames)
+
+            if data_first == None:
+                my_exit("NOT: Missing value\n", 56);
+
 
             if type(data_first) == bool:
                 data_to_write = not data_first
@@ -463,6 +514,8 @@ def interpret(instructions_l, labels, input_f):
             data_from_frame = read_from_frame(instruction.arguments[0], frames)
             data_first = read_from_frame(instruction.arguments[1], frames)
 
+            if data_first == None:
+                my_exit("INT2CHAR: Missing value\n", 56);
             if type(data_first) != int:
                 my_exit("Wrong operand types\n", 53)
             try:
@@ -476,6 +529,9 @@ def interpret(instructions_l, labels, input_f):
             data_from_frame = read_from_frame(instruction.arguments[0], frames)
             data_first = read_from_frame(instruction.arguments[1], frames)
             data_second = read_from_frame(instruction.arguments[2], frames)
+            
+            if data_first == None or data_second == None:
+                my_exit("STRI2INT: Missing value\n", 56)
 
             if type(data_first) != str or type(data_second) != int:
                 my_exit("Wrong operand types\n", 53)
@@ -484,10 +540,13 @@ def interpret(instructions_l, labels, input_f):
                 my_exit("Index out of boundaries of the string\n", 58)
             
             data_to_write = ord(data_first[data_second])
+            write_to_frame(data_to_write, instruction.arguments[0], frames)
 
         elif instruction.opcode == 'READ':
+            # TODO redo read
             data_from_frame = read_from_frame(instruction.arguments[0], frames)
             data_first = read_from_frame(instruction.arguments[1], frames) 
+            read_input = ""
 
             if input_f != None:
                 if first_read:
@@ -495,27 +554,29 @@ def interpret(instructions_l, labels, input_f):
                     first_read = False
 
                 if len(input_data) == 0:
-                    data_to_write = "nil@nil"
+                    write_to_frame(nil_type, instruction.arguments[0], frames)
+                    continue
                 else:
-                    data_to_write = input_data.pop(0)
+                    read_input = input_data.pop(0)
             else:
                 try:
-                    data_to_write = input()
+                    read_input = input()
                 except:
-                    data_to_write = "nil@nil"
-            
+                    write_to_frame(nil_type, instruction.arguments[0], frames)
+                    continue
+
             if data_first == "string":
-                data_to_write = str(data_to_write)
+                data_to_write = str(read_input)
             elif data_first == "int":
                 try:
-                    data_to_write = int(data_to_write)
+                    data_to_write = int(read_input)
                 except:
-                    data_to_write = "nil@nil"
+                    data_to_write = nil_type
             elif data_first == "bool":
-                if data_to_write.lower() == "true":
-                    data_to_write = "true"
+                if read_input.lower() == "true":
+                    data_to_write = True;
                 else:
-                    data_to_write = "false"
+                    data_to_write = False
             else:
                 my_exit("Wrong instruction type for function READ\n", 57)
 
@@ -524,6 +585,8 @@ def interpret(instructions_l, labels, input_f):
         elif instruction.opcode == 'WRITE':
 
             data_from_frame = read_from_frame(instruction.arguments[0], frames)
+            if data_from_frame == None:
+                my_exit("WRITE: Missing value\n", 56)
             if type(data_from_frame) == bool:
                 print(str(data_from_frame).lower(), end="")
             else:
@@ -535,6 +598,9 @@ def interpret(instructions_l, labels, input_f):
             data_first = read_from_frame(instruction.arguments[1], frames)
             data_second = read_from_frame(instruction.arguments[2], frames)
 
+            if data_first == None or data_second == None:
+                my_exit("CONCAT: Missing value\n", 56);
+
             if type(data_first) != str or type(data_second) != str:
                 my_exit("Wrong operand types\n", 53)
 
@@ -545,16 +611,23 @@ def interpret(instructions_l, labels, input_f):
 
             data_from_frame = read_from_frame(instruction.arguments[0], frames)
             data_second = read_from_frame(instruction.arguments[1], frames)
+            if data_second == None:
+                my_exit("STRLEN: Missing value\n", 56)
             if ( type(data_second) != str ):
                 my_exit("Wrong operand types\n", 53)
 
             data_to_write = len(data_second)
             write_to_frame(data_to_write, instruction.arguments[0], frames) 
+
         elif instruction.opcode == 'GETCHAR':
             data_from_frame = read_from_frame(instruction.arguments[0], frames)
 
             data_first = read_from_frame(instruction.arguments[1], frames)
             data_second = read_from_frame(instruction.arguments[2], frames)
+
+            if data_first == None or data_second == None:
+                my_exit("GETCHAR: Missing value\n", 56);
+
             if type(data_first) != str or type(data_second) != int:
                 my_exit("Wrong operand types\n", 53)
             
@@ -570,12 +643,15 @@ def interpret(instructions_l, labels, input_f):
             data_to_write = read_from_frame(instruction.arguments[0], frames)
             data_first = read_from_frame(instruction.arguments[1], frames)
             data_second = read_from_frame(instruction.arguments[2], frames)
-            
+
+            if data_to_write == None or data_first == None or data_second == None:
+                my_exit("SETCHAR: Missing value\n", 56)
+
             if type(data_first) != int or type(data_second) != str or type(data_to_write) != str:
                 my_exit("Wrong operand types\n", 53)
 
-            if (data_first < 0 or data_first >= len(data_to_write)):
-                my_exit(f"Index {data_first} out of boundaries of the string\n", 58)
+            if (data_first < 0 or data_first >= len(data_to_write) or len(data_second) == 0):
+                my_exit(f"Index {data_first} out of boundaries of the string {data_second}\n", 58)
             
             data_to_write = list(data_to_write)
             data_to_write[data_first] = data_second[0]
@@ -599,28 +675,48 @@ def interpret(instructions_l, labels, input_f):
             index = get_label_index(instruction.arguments[0],labels)
 
         elif instruction.opcode == 'JUMPIFEQ':
+
             data_first = read_from_frame(instruction.arguments[1], frames)
             data_second = read_from_frame(instruction.arguments[2], frames)
 
-            if type(data_first) != type(data_second):
+            if data_first == None or data_second == None:
+                my_exit("JUMPIFEQ: Missing value\n", 56)
+
+            if type(data_first) == type(data_second) or data_first == nil_type or data_second == nil_type:
+                if data_first == data_second:
+                    index = get_label_index(instruction.arguments[0], labels)
+
+                if str(instruction.arguments[0]) not in labels:
+                    my_exit(f"Label {instruction.arguments[0]} was not defined\n", 52)
+
+
+            else:
                 my_exit("Wrong operand types\n", 53)
-            if data_first == data_second:
-                index = get_label_index(instruction.arguments[0], labels)
 
         elif instruction.opcode == 'JUMPIFNEQ':
 
             data_first = read_from_frame(instruction.arguments[1], frames)
             data_second = read_from_frame(instruction.arguments[2], frames)
 
-            if type(data_first) != type(data_second):
-                my_exit("Wrong operand types\n", 53)
+            if data_first == None or data_second == None:
+                my_exit("JUMPIFNEQ: Missing value\n", 56)
 
-            if data_first != data_second:
-                index = get_label_index(instruction.arguments[0], labels)
+            if type(data_first) == type(data_second) or data_first == nil_type or data_second == nil_type:
+                if data_first != data_second:
+                    index = get_label_index(instruction.arguments[0], labels)
+
+                if str(instruction.arguments[0]) not in labels:
+                    my_exit(f"Label {instruction.arguments[0]} was not defined\n", 52)
+            else:
+                my_exit("Wrong operand types\n", 53)
 
         elif instruction.opcode == 'EXIT':
 
             data_first = read_from_frame(instruction.arguments[0], frames)
+
+            if data_first == None:
+                my_exit("EXIT: Missing value\n", 56);
+
             if type(data_first) != int:
                 my_exit("Wrong operand types\n", 53)
             if data_first >= 0 and data_first <= 49:
