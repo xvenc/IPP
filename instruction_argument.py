@@ -1,3 +1,5 @@
+import xml.etree.ElementTree as ET
+import sys, re
 correct_instructions = {"RETURN" : 0, "BREAK" : 0, "CREATEFRAME" : 0, "PUSHFRAME" : 0, "POPFRAME" : 0,
                         "CALL" : 1, "LABEL" : 1, "JUMP" : 1, "PUSHS" : 1, "WRITE" : 1, "EXIT" : 1,
                         "DPRINT" : 1, "DEFVAR" : 1, "POPS" : 1, "MOVE" : 2, "INT2CHAR" : 2, "TYPE" : 2,
@@ -20,7 +22,10 @@ correct_instruction_types = {"RETURN" : None, "BREAK" : None, "CREATEFRAME" : No
                         "STRI2INT" : ["var", "symb", "symb"], "CONCAT" : ["var", "symb", "symb"], 
                         "GETCHAR" : ["var", "symb", "symb"], "SETCHAR" : ["var", "symb", "symb"],
                         "JUMPIFEQ" : ["label", "symb", "symb"], "JUMPIFNEQ" : ["label", "symb", "symb"]}
-
+# TODO separete classes
+def my_exit(message : str, exit_code : int):
+    sys.stderr.write(message)
+    sys.exit(exit_code)
 
 class Instruction:
 
@@ -57,6 +62,12 @@ class Argument:
             self.value = value
         else:
             self.value = ""
+        # replace all escape sequences in string
+        if typ == "string":
+            to_replace = re.findall(r'\\[0-9][0-9][0-9]',self.value)
+            for old_value in to_replace:
+                new_value = chr(int(old_value[1::1]))
+                self.value = self.value.replace(old_value, new_value)
         self.order = int(order)
 
     # for better debug
@@ -65,7 +76,7 @@ class Argument:
     
     def __repr__(self):
         return self.typ
-    # add arg other and check if it should be symb so check if in symb 
+
     def assign_type(self, expected):
         if self.typ == "label":
             return "label"
@@ -75,7 +86,6 @@ class Argument:
             return "var"
         elif self.typ == "type":
             return "type"
-
 
 class Frames:
 
@@ -87,7 +97,9 @@ class Frames:
     def create_tf(self):
         self.TF = dict()
 
-    def read_data(self, variable, frame):
+    def get_data(self, arg):
+        frame = arg.value.split("@",1)[0]
+        variable = arg.value.split("@",1)[1]
         if frame == 'GF':
             if variable in self.GF:
                 return self.GF[variable], 0
@@ -139,3 +151,98 @@ class NIL:
     
     def __repr__(self):
         return "nil"
+
+class XML_checker:
+
+    def __init__(self,source_data):
+        try:
+            self.root = ET.fromstringlist(source_data)
+        except:
+            my_exit("XML file wasnt well-formated\n", 31)
+    
+    # check if xml input file has correct format
+    def check_xml_elements(self):
+        # check if root has program attrib
+        if (self.root.tag != "program"):
+            my_exit("Wrong root tag\n", 32)
+
+    # check root attributes 
+        for prog_attrib in self.root.attrib:
+            if ( prog_attrib not in ('name','language','description') ):
+                my_exit("Wrong element attribute was used, should be 'order' and 'opcode'\n", 32)
+
+        if (self.root.get("language") != "IPPcode22"):
+            my_exit("Wrong language\n", 32)
+
+        # loop through instructions
+        for child in self.root:
+            # check if only attributes opcode and order are used
+            for attribute in child.attrib:
+                if ( attribute not in ('opcode','order') ):
+                    my_exit("Wrong instruction element attribute was used, should be 'order' and 'opcode'\n", 32)
+            try:
+                instr = child.get("opcode").upper()
+                order = int(child.get("order"))
+            except:
+                my_exit("Opcode or order is not used\n", 32)
+            # check if only correct instructions are present
+            if (instr not in correct_instructions):
+                my_exit("Wrong instruction name\n", 32)
+
+            # check if only instruction tag is used
+            if ( child.tag != "instruction" ):
+                my_exit("Wrong element tag, it should be instruction\n", 32)
+
+            # loop through instruction arguments
+            arg_cnt = 0 # number of instructions in an instruction
+            for args in child:
+                arg_cnt += 1
+                if ( args.tag not in ('arg1','arg2','arg3') ):
+                    my_exit("Invalid argument tag number was used\n", 32)
+
+            if (arg_cnt != correct_instructions.get(instr)):
+                my_exit(f"Incorrect argument count for instruction {instr}\n", 32)
+
+        return
+    # function to read instruction from given xml file
+    def read_instructions(self) -> list:
+        instructions_l = [] # list of all instructions
+        for child in self.root:
+            arguments_l = [] # list for arguments
+            for args in child:
+                # get argument number
+                arg_n = re.search(r"\d+(\.\d+)?", args.tag)
+                if arg_n == None:
+                    exit(32)
+                arg_n = arg_n.group(0)
+
+                argument = Argument(args.get("type"), args.text, int(arg_n))
+                arguments_l.append(argument)
+
+            # sort arguments
+            arguments_l.sort(key= lambda argument : argument.order)
+
+            # check if arguments go one after other
+            index = 1        
+            for arg in arguments_l:
+                if arg.order != index:
+                    my_exit(f"Instruction {child} has wrong arguments\n", 32)
+                index += 1
+
+            instr = Instruction(child.get("opcode").upper(),arguments_l, child.get("order"))
+            instructions_l.append(instr)
+        
+        # sort instruction through their opcode
+        instructions_l.sort(key=lambda instr : instr.order)
+        if (instructions_l == None):
+            exit(32)
+        # check if instructions are ordered from 1 to n
+        # and if there are no duplicit values
+        prev_order = 0
+        for instr in instructions_l:
+            if instr.order <= prev_order:
+                my_exit(f"Instruction {instr} has wrong order\n", 32)
+            prev_order = instr.order
+
+
+        return instructions_l

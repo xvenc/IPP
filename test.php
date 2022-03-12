@@ -178,7 +178,7 @@ foreach ($dir as $file) {
         $tmp_out_file = $path."_tmp.out"; # help file for parse output
         $tmp_xml_out = $path."_xml.out";
 
-        $exp_ret_code = fgets(fopen($rc_file, 'r')); // TODO get only first think and convert to int
+        $exp_ret_code = intval(explode(" ",fgets(fopen($rc_file, 'r')))[0]);
 
         // check if all necessary files exist
         all_file_exists($rc_file, $in_file, $out_file);
