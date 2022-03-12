@@ -190,15 +190,15 @@ foreach ($dir as $file) {
             exec($command, $junk, $parse_ret_code); 
 
            // compare exit codes
-            if ($parse_ret_code != 0) {
-                html_parse_only($number, $path.".src", $exp_ret_code, $parse_ret_code, "Wrong RC");
+            if ($parse_ret_code != 0 || $exp_ret_code != 0) {
+                html_parse_only($number, $path.".src", $exp_ret_code, $parse_ret_code, "Wrong RC", "-");
                 
             } else {
                 // exit code is 0, do XML compare
                 $xml_ret_code = 0;
                 $xml_command = "java -jar {$jex_dir} {$out_file} {$tmp_out_file} tests/ipp-2022-tests/options >/dev/null"; 
                 exec($xml_command, $junk, $xml_ret_code);
-                html_parse_only($number,$path.".src",$exp_ret_code, $xml_ret_code, "Wrong XML");
+                html_parse_only($number,$path.".src",$exp_ret_code, $xml_ret_code, "Wrong XML", "-");
             }
              
 
@@ -209,15 +209,15 @@ foreach ($dir as $file) {
             $command = "python3 {$interpret} --source={$path}.src --input={$in_file} > {$tmp_out_file} 2> /dev/null";
             exec($command, $junk, $int_ret_code); # TODO mby check if exec didnt failed
 
-            if ($int_ret_code != 0) {
-                html_int_only($number, $path.".src", $exp_ret_code, $int_ret_code, "Wrong RC");
+            if ($int_ret_code != 0 || $exp_ret_code != 0) {
+                html_int_only($number, $path.".src", $exp_ret_code, $int_ret_code,"-", "Wrong RC");
                 
             } else {
                 // do diff on output and expected output
                 $diff_ret_code = 0;
                 $diff_command ="diff {$tmp_out_file} {$out_file} > /dev/null";
                 exec($diff_command, $junk, $diff_ret_code);
-                html_int_only($number, $path.".src", $exp_ret_code, $diff_ret_code, "Wrong diff");
+                html_int_only($number, $path.".src", $exp_ret_code, $diff_ret_code,"-", "Wrong diff");
 
             }
 
@@ -231,36 +231,21 @@ foreach ($dir as $file) {
             $diff_command ="diff {$tmp_out_file} {$out_file} > /dev/null";
 
             exec($parse_command, $junk, $parse_ret_code);
+
+            // check if parse failed
             if ($parse_ret_code != 0) {
-                echo "FAILED BOTH PARSER ".$file."\n";
-                $failed++;
+                html_parse_only($number, $path.".src",0,$parse_ret_code, "WRONG RC", "NOT RUN");
                 continue;
             } 
+            // if parse failed the code wont be interpreted
             exec($int_command, $junk, $int_ret_code);
-            if ($exp_ret_code != 0) {
-                if ($exp_ret_code == $int_ret_code) {
-                    echo "PASSED ".$file."\n";
-                    $passed++;
-                } else {
-                    echo "FAILED ERC ".$file."\n";
-                    $failed++;
-                }
-            } else {
-                if ($int_ret_code == 0) {
-                    $diff_ret_code = 0;
-                    exec($diff_command, $junk, $diff_ret_code);
-                    if ($diff_ret_code != 0) {
-                        $failed++;
-                        echo "FAILED DIFF ".$file."\n";
-                    } else {
-                        $passed++;
-                        echo "PASSED ".$file."\n";
-                    }
-                } else {
-                    $failed++;
-                    echo "FAILED RC ".$file."\n";
-                }
+            if ($int_ret_code != 0 || $exp_ret_code != 0) {
+                html_int_only($number, $path.".src", $exp_ret_code, $int_ret_code,"no", "Wrong RC");
 
+            } else {
+                $diff_ret_code = 0;
+                exec($diff_command, $junk, $diff_ret_code);
+                html_int_only($number, $path.".src", $exp_ret_code, $diff_ret_code,"no", "Wrong diff");
             }
         }
 
@@ -271,6 +256,4 @@ foreach ($dir as $file) {
 
  }
  html_end($number, $passed, $failed);
-//fwrite(STDERR, "PASSED: ".$passed."\n");
-//fwrite(STDERR, "FAILED: ".$failed."\n");
 ?>

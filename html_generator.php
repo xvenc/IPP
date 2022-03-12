@@ -1,13 +1,13 @@
 <?php
-
-function html_parse_only($number,$path, $expected, $RC, $err_msg) {
+// TODO create array with number of failed test
+function html_parse_only($number,$path, $expected, $RC, $parse_err, $int_err) {
     global $passed, $failed;
     if ($expected == $RC) {
         echo"<tr class=\"passed\">
             <td>$number</td>
             <td>$path</td>
-            <td> no </td>
-            <td> - </td>
+            <td>no</td>
+            <td>$int_err</td>
             <td>$expected</td>
             <td>$RC</td>
             <td> PASSED </td>
@@ -17,8 +17,8 @@ function html_parse_only($number,$path, $expected, $RC, $err_msg) {
         echo"<tr class=\"failed\">
             <td>$number</td>
             <td>$path</td>
-            <td> $err_msg </td>
-            <td> - </td>
+            <td>$parse_err</td>
+            <td>$int_err</td>
             <td>$expected </td>
             <td>$RC</td>
             <td> FAILED </td>
@@ -27,13 +27,13 @@ function html_parse_only($number,$path, $expected, $RC, $err_msg) {
     } 
 }
 
-function html_int_only($number,$path, $expected, $RC, $err_msg) {
+function html_int_only($number,$path, $expected, $RC, $parse_err, $int_err) {
     global $passed, $failed;
     if ($expected == $RC) {
         echo"<tr class=\"passed\">
             <td>$number</td>
             <td>$path</td>
-            <td> - </td>
+            <td> $parse_err </td>
             <td> no </td>
             <td>$expected</td>
             <td>$RC</td>
@@ -44,8 +44,8 @@ function html_int_only($number,$path, $expected, $RC, $err_msg) {
         echo"<tr class=\"failed\">
             <td>$number</td>
             <td>$path</td>
-            <td> - </td>
-            <td> $err_msg </td>
+            <td> $parse_err </td>
+            <td> $int_err </td>
             <td>$expected </td>
             <td>$RC</td>
             <td> FAILED </td>
@@ -120,10 +120,9 @@ function header_html($test_type) {
         </tr>"."\n";
 }
 
-function html_both(){}
 
 function html_end($number, $passed, $failed) {
-    $result = $passed/$number * 100;
+    $result = round($passed/$number * 100, 2);
     echo "</table><br><br>"."\n";
     echo "<table class=\"summary\">
     <tr style=\"background-color: #83a598; color: #282828;  height: 50px;\">
@@ -142,7 +141,7 @@ function html_end($number, $passed, $failed) {
         <td style=\"color: #fb4934;\">$failed</td>
     </tr>
     <tr style=\"background-color: #b8bb26; color: #282828; height: 50px;\">
-        <th>Overall rating</th>
+        <th>Sucess rate</th>
         <td style=\"font-weight: bold;\">$result %</td>
     </tr>
 </table>"."\n";
@@ -151,5 +150,4 @@ function html_end($number, $passed, $failed) {
     </html>
      "."\n";
 }
-
 ?>
