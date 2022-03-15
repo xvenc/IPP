@@ -177,11 +177,12 @@ foreach ($dir as $file) {
         $out_file = $path.".out";
         $tmp_out_file = $path."_tmp.out"; # help file for parse output
         $tmp_xml_out = $path."_xml.out";
+        // check if all necessary files exist
+        all_file_exists($rc_file, $in_file, $out_file);
 
         $exp_ret_code = intval(explode(" ",fgets(fopen($rc_file, 'r')))[0]);
 
-        // check if all necessary files exist
-        all_file_exists($rc_file, $in_file, $out_file);
+        
 
         if ($parse_only_set) {
             $parse_ret_code = 0;
