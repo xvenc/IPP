@@ -27,6 +27,16 @@ def check_args():
         help()
         sys.exit(10)
 
+    for arg in sys.argv[1:]:
+        if re.search("^--input=.+$", arg):
+            continue
+        elif re.search("^--source=.+$", arg):
+            continue
+        elif arg == "--help":
+            continue
+        else:
+            my_exit("wrong argument", 10)
+
     for opt, arg in options:
         if opt == '--help' and len(options) == 1:
             help()
@@ -99,7 +109,7 @@ def data_from_const(arg):
         data = str(arg.value)
     elif arg.typ == 'int':
         try:
-            data = int(arg.value)
+            data = int(arg.value, 0)
         except:
             my_exit("Data can be only integer\n", 57)
     elif arg.typ == 'bool':
@@ -152,8 +162,6 @@ def get_data_from_arg(frames, instruction):
                 my_exit("Frame doesnt exist\n", code)
             elif code == 54:
                 my_exit("Variable doesnt exist\n", code)
-                            
-        
         if (arg.typ in ("int","string", "bool", "nil") and arg.order == 1):
             data_first = data_from_const(arg)
 
@@ -276,7 +284,7 @@ def interpret(instructions_l, labels, input_f):
 
             if data_third == None or data_second == None:
                 my_exit("SUB: Missing value\n", 56);
-            
+
             if type(data_third) != int or type(data_second) != int:
                 my_exit("Wrong operand types\n", 53)
 
@@ -321,10 +329,10 @@ def interpret(instructions_l, labels, input_f):
 
             if data_third == None or data_second == None:
                 my_exit("GT: Missing value\n", 56);
-            
+
             if data_third == nil_type or data_second == nil_type:
                 my_exit("Wrong operand types\n", 53)
-            
+
             if type(data_third) != type(data_second):
                 my_exit("Wrong operand types\n", 53)
 
@@ -347,7 +355,7 @@ def interpret(instructions_l, labels, input_f):
 
             if type(data_third) != bool or type(data_second) != bool:
                 my_exit("Wrong operand types\n", 53)
-            
+
             data_to_write = data_third and data_second
 
         elif instruction.opcode == 'OR':
@@ -357,7 +365,7 @@ def interpret(instructions_l, labels, input_f):
 
             if type(data_third) != bool or type(data_second) != bool:
                 my_exit("Wrong operand types\n", 53)
-            
+
             data_to_write = data_second or data_third
 
         elif instruction.opcode == 'NOT':
@@ -369,7 +377,7 @@ def interpret(instructions_l, labels, input_f):
                 data_to_write = not data_second
             else:
                 my_exit("Wrong operand types\n", 53)
-            
+
         elif instruction.opcode == 'INT2CHAR':
 
             if data_second == None:
@@ -380,9 +388,9 @@ def interpret(instructions_l, labels, input_f):
                 data_to_write = chr(data_second)
             except ValueError:
                 my_exit("Wrong integer number in instruction INT2CHAR\n", 58)
-            
+
         elif instruction.opcode == 'STRI2INT':
-            
+
             if data_second == None or data_third == None:
                 my_exit("STRI2INT: Missing value\n", 56)
 
@@ -587,4 +595,3 @@ instructions = root.read_instructions()
 check_argument_types(instructions)
 labels = find_labels(instructions)
 interpret(instructions, labels, input_f)
-#print_instructions(instructions)

@@ -1,6 +1,8 @@
 <?php
-// TODO create array with number of failed test
 $fail = array();
+
+// function to generate line in table like this:
+// | number of test | path to executed src file | parser failed? | - | expected parse RC | actual parse RC | passed/failed
 function html_parse_only($number,$path, $expected, $RC, $parse_err, $int_err) {
     global $passed, $failed, $fail;
     if ($expected == $RC) {
@@ -28,7 +30,8 @@ function html_parse_only($number,$path, $expected, $RC, $parse_err, $int_err) {
         array_push($fail, $number);
     } 
 }
-
+// function to generate line in table like this:
+// | number of test | path to executed src file | parser failed? | interpret failed? | expected parse RC | actual parse RC | passed/failed
 function html_int_only($number,$path, $expected, $RC, $parse_err, $int_err) {
     global $passed, $failed, $fail;
     if ($expected == $RC) {
@@ -57,9 +60,10 @@ function html_int_only($number,$path, $expected, $RC, $parse_err, $int_err) {
     } 
 }
 
+// function to generate html header with all configuarations like colors, table allign, etc.
 function header_html($test_type) {
-    global $argv;
-    $list = implode( ", ", $argv ); 
+    global $set_arguments;
+    $list = implode( ", ", $set_arguments ); 
     echo "<!DOCTYPE html>
     <html lang=\"cz\">
     <head>
@@ -124,7 +128,7 @@ function header_html($test_type) {
         </tr>"."\n";
 }
 
-
+// function to generate html end with end of the main table, and to generate smaller table with summary
 function html_end($number, $passed, $failed) {
     global $fail;
     $result = 100;

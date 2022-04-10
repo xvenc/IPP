@@ -38,7 +38,7 @@ class Instruction:
     def __str__(self):
         return self.opcode
         #+ " " + " ".join(str(i) for i in self.arguments)
-    
+
     def check_instruction(self):
         postion = 0
         if self.opcode in correct_instruction_types:
@@ -49,10 +49,10 @@ class Instruction:
                     postion += 1
                 else:
                     return False
-        else: 
+        else:
             return False
-        return True        
-        
+        return True
+
 
 class Argument:
 
@@ -73,7 +73,7 @@ class Argument:
     # for better debug
     def __str__(self):
         return self.value
-    
+
     def __repr__(self):
         return self.typ
 
@@ -148,7 +148,7 @@ class NIL:
 
     def __str__(self):
         return ""
-    
+
     def __repr__(self):
         return "nil"
 
@@ -159,7 +159,7 @@ class XML_checker:
             self.root = ET.fromstringlist(source_data)
         except:
             my_exit("XML file wasnt well-formated\n", 31)
-    
+
     # check if xml input file has correct format
     def check_xml_elements(self):
         # check if root has program attrib
@@ -223,7 +223,7 @@ class XML_checker:
             arguments_l.sort(key= lambda argument : argument.order)
 
             # check if arguments go one after other
-            index = 1        
+            index = 1
             for arg in arguments_l:
                 if arg.order != index:
                     my_exit(f"Instruction {child} has wrong arguments\n", 32)
@@ -231,7 +231,7 @@ class XML_checker:
 
             instr = Instruction(child.get("opcode").upper(),arguments_l, child.get("order"))
             instructions_l.append(instr)
-        
+
         # sort instruction through their opcode
         instructions_l.sort(key=lambda instr : instr.order)
         if (instructions_l == None):

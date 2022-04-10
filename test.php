@@ -1,17 +1,19 @@
 <?php
 
 include 'html_generator.php';
-# Global definitions of arguments
-$interpret = "interpret.py";
-$parse = "parse.php";
-$test_dir = "./";
-$jex_dir = "./pub/courses/ipp/jexamxml/"; # TODO change it when testing on merlin
-$recursive = false;
-$noclean = false;
-$parse_only_set = FALSE;
-$int_only_set = FALSE;
+// Global definitions of arguments
+$interpret = "interpret.py";                // default interpret
+$parse = "parse.php";                       // default parse 
+$test_dir = "./";                           // default dir to search for tests
+$jex_dir = "/pub/courses/ipp/jexamxml/";    // default dir to search for jexamxml.jar and options
+$recursive = false;                         // variable to store if recursive option was set
+$noclean = false;                           // variable to store if noclean option was set
+$parse_only_set = FALSE;                    // if to do only parse tests
+$int_only_set = FALSE;                      // if to do only interpret tests
 
-$argv = array();
+$set_arguments = array();
+$argument_regex = "((^--input=.+$)|(^--help$)|(^--directory=.+$)|(^--recursive$)|(^--parse-script=.+$)|(^--int-script=.+$)|(^--(parse|int)-only$)|(^--jexampath=.+$)|(^--noclean$))";
+// function to print help
 function my_help() {
     echo "Usage: php8.1 test.php [options]\n\n";
     echo "Options:\n\n";
@@ -26,14 +28,17 @@ function my_help() {
     echo "--noclean:\t\ttest.php wont delete files created during testing\n";
 }
 
+// fucntion to generate message on stderr and exit with given return code
 function my_exit($text, $ret_code) {
     fwrite(STDERR, $text);
     exit($ret_code);
 }
 
+// function to parse command line paramets using php function getopt
 function parse_arguments() {
+    // list of all global variables
     global $interpret, $parse, $test_dir, $jex_dir, $recursive, $noclean, $parse_only_set,
-           $int_only_set, $argv;
+           $int_only_set, $set_arguments, $argument_regex;
     $arg_array = array("help","directory:", "recursive", "parse-script:",
                        "int-script:", "parse-only", "int-only", "jexampath:", "noclean");
     
@@ -42,7 +47,16 @@ function parse_arguments() {
     $int_script_set = false;
     $parse_script_set = false;
 
+    unset($_SERVER['argv'][0]);
+    foreach($_SERVER['argv'] as $key => $value) {
+        if (!preg_match($argument_regex, $value)) {
+            my_exit("Wrong argument\n", 10);
+        }    
+    }
+    // get all used long arguments
     $arguments = getopt("",$arg_array);
+    
+    // check for each indivudual option of the script
     if (array_key_exists("help", $arguments)) {
         if (count($arguments) != 1) {
             my_exit("ERROR: help argument cant be used with any other\n", 10);
@@ -52,51 +66,67 @@ function parse_arguments() {
     } 
     if (array_key_exists("directory", $arguments)){
         $test_dir = $arguments["directory"];
-        array_push($argv, "--directory");
+        array_push($set_arguments, "--directory");
+        // check if directory exists
+        if (!is_dir($test_dir)) {
+            my_exit("Isnt a directory", 41);
+        }
 
     } 
+
     if ( array_key_exists("recursive", $arguments) ) {
         $recursive = true;
-        array_push($argv, "--recursive");
+        array_push($set_arguments, "--recursive");
 
     }
     if (array_key_exists("parse-script", $arguments)) {
         $parse = $arguments["parse-script"];
         $parse_script_set = true;
-        array_push($argv, "--parse-script");
+        array_push($set_arguments, "--parse-script");
+        // check if file with parse.php exists
+        if (!file_exists($parse)) {
+            my_exit("File for parsing doesnt exists", 41);
+        }
 
-        // TODO check if script exists 
     } 
     if (array_key_exists("int-script", $arguments)) {
         $interpret = $arguments["int-script"];
         $int_script_set = true;
-        array_push($argv, "--int-script");
-
-        // TODO check if script exists
+        array_push($set_arguments, "--int-script");
+        // check if interpret file exists
+        if (!file_exists($interpret)) {
+            my_exit("File for interprettion doesnt exists", 41);
+        }
     } 
     if (array_key_exists("parse-only", $arguments)) {
         $parse_only_set = true;
-        array_push($argv, "--parse-only");
+        array_push($set_arguments, "--parse-only");
 
     }  
     if (array_key_exists("int-only", $arguments)) {
         $int_only_set = true;
-        array_push($argv, "--int-only");
+        array_push($set_arguments, "--int-only");
 
     } 
     if (array_key_exists("jexampath", $arguments)) {
         $jexam_set = true;
         $jex_dir = $arguments["jexampath"];
-         array_push($argv, "--jexampath");
+        if (!is_dir($jex_dir)) {
+            my_exit("Not a directory with jexam", 41);
+        }
+        if (substr($jex_dir,-1) != "/") {
+            $jex_dir = $jex_dir."/";
+        }
+        array_push($set_arguments, "--jexampath");
        
     }  
     if (array_key_exists("noclean", $arguments)) {
         $noclean = true;
-        array_push($argv, "--noclean");
+        array_push($set_arguments, "--noclean");
 
     }
 
-    # control if wrong combination of arguments wasnt used
+    # check if wrong combination of arguments wasnt used
     if ( ($int_only_set && $parse_only_set) || ($int_only_set && $jexam_set)
         || ($int_only_set && $parse_script_set) || ($parse_only_set && $int_script_set) ) {
         my_exit("Wrong combination of parametes was used\n", 11);
@@ -104,6 +134,8 @@ function parse_arguments() {
 
 }
 
+// function to check if all files (.rc, .out and .in) exists, if not create empty files
+// except for .rc file, if .rc file doesnt exist then create one with ret code 0
 function all_file_exists ($rc_file, $in_file, $out_file) {
     if (!file_exists($rc_file)) {
        $fp = fopen($rc_file, "w");
@@ -122,21 +154,27 @@ function all_file_exists ($rc_file, $in_file, $out_file) {
     }
 }
 
-function remove_tmp_files ($tmp_out, $tmp_xml) {
-    // Clean up created files
+// function to clean up all possible created files
+function remove_tmp_files ($tmp_out, $tmp_xml, $xml_log) {
     if (file_exists($tmp_out)) {
         unlink($tmp_out);
     }
     if (file_exists($tmp_xml)) {
         unlink($tmp_xml);
     }
+    // clean up log files after xml diff
+    if (file_exists($xml_log)) {
+        unlink($xml_log);
+    }
 }
 
 
 # MAIN CODE
 
+// parse program arguments
 parse_arguments();
 
+// determine if we search recursively all directories or just one directory
 if ($recursive == false){
     try {
         $dir = new DirectoryIterator($test_dir);
@@ -151,9 +189,12 @@ if ($recursive == false){
         my_exit("Directory doesnt exist\n", 41);
     } 
 }
+// variables to store continuous results
 $passed = 0;
 $failed = 0;
 $number = 0;
+
+// generate HTML header with all configurations
 if ($parse_only_set) {
     header_html("PARSE ONLY TESTS");
 } elseif ($int_only_set) {
@@ -168,52 +209,63 @@ foreach ($dir as $file) {
 
     if ($file->getExtension() == "src" && ($file->getFilename()[0] != ".")) {
         $number++;
-        //echo $file->getFilename()."\n";
         $path = $file->getPathname();
         $path = substr($path, 0, -4);
         
-        $rc_file = $path.".rc";
-        $in_file = $path.".in";
-        $out_file = $path.".out";
-        $tmp_out_file = $path."_tmp.out"; # help file for parse output
-        $tmp_xml_out = $path."_xml.out";
-        // check if all necessary files exist
+        $rc_file = $path.".rc";             // file with correct return code
+        $in_file = $path.".in";             // file with input for read instruction in interpret.py
+        $out_file = $path.".out";           // file with correct output
+        $tmp_out_file = $path."_tmp.out";   // help file for parse output
+        $tmp_xml_out = $path."_xml.out";    // help file for xml diff
+        $xml_log = $out_file.".log";
+
+        // check if all necessary files exist, and if not then create them
         all_file_exists($rc_file, $in_file, $out_file);
 
+        // get return code from .rc file, if more than one value then take the first one
         $exp_ret_code = intval(explode(" ",fgets(fopen($rc_file, 'r')))[0]);
 
         
+        // do parse only tests
+        if ($parse_only_set == true) {
 
-        if ($parse_only_set) {
             $parse_ret_code = 0;
+            $jexjar = $jex_dir."jexamxml.jar";
+            $jexopt = $jex_dir."options";
 
+            # TODO change php -> php8.1
             $command = "php {$parse} < {$path}.src > {$tmp_out_file} 2> /dev/null";
             exec($command, $junk, $parse_ret_code); 
-
            // compare exit codes
             if ($parse_ret_code != 0 || $exp_ret_code != 0) {
                 html_parse_only($number, $path.".src", $exp_ret_code, $parse_ret_code, "Wrong RC", "-");
                 
             } else {
-                // exit code is 0, do XML compare
+                // exit code is 0, do XML compare, need to compare xml files
+                // check if all necessary files for jexamxml diff exists
+                if (!is_file($jexjar) || !is_file($jexopt)) {
+                    my_exit("File with jexamxml.jar or options doesnt exists", 41);
+                }
                 $xml_ret_code = 0;
-                $xml_command = "java -jar {$jex_dir} {$out_file} {$tmp_out_file} tests/ipp-2022-tests/options >/dev/null"; 
+                $xml_command = "java -jar {$jexjar} {$out_file} {$tmp_out_file} delta.xml /D {$jexopt} >/dev/null"; 
                 exec($xml_command, $junk, $xml_ret_code);
                 html_parse_only($number,$path.".src",$exp_ret_code, $xml_ret_code, "Wrong XML", "-");
             }
              
-
-        } elseif ($int_only_set) {
-            // only interpret tests
+        // only interpret tests
+        } elseif ($int_only_set == true) {
             $int_ret_code = 0;
 
+            // command to be executed
             $command = "python3 {$interpret} --source={$path}.src --input={$in_file} > {$tmp_out_file} 2> /dev/null";
             exec($command, $junk, $int_ret_code); # TODO mby check if exec didnt failed
 
+            // compare interpret return code with expected ret code
             if ($int_ret_code != 0 || $exp_ret_code != 0) {
                 html_int_only($number, $path.".src", $exp_ret_code, $int_ret_code,"-", "Wrong RC");
                 
             } else {
+                // return code is correct
                 // do diff on output and expected output
                 $diff_ret_code = 0;
                 $diff_command ="diff {$tmp_out_file} {$out_file} > /dev/null";
@@ -223,10 +275,11 @@ foreach ($dir as $file) {
             }
 
 
+        // Both parse and interpret tests
         } else {
-            // Both parse and interpret tests
             $int_ret_code = 0;
             $parse_ret_code = 0; 
+            # TODO change php -> php8.1
             $parse_command = "php {$parse} < {$path}.src > {$tmp_xml_out} 2> /dev/null";
             $int_command = "python3 {$interpret} --source={$tmp_xml_out} --input={$in_file} > {$tmp_out_file} 2> /dev/null";
             $diff_command ="diff {$tmp_out_file} {$out_file} > /dev/null";
@@ -250,11 +303,12 @@ foreach ($dir as $file) {
             }
         }
 
+        // check if to clean or not to clean temporary files that were created
         if (!$noclean) {
-            remove_tmp_files($tmp_out_file, $tmp_xml_out);
+            remove_tmp_files($tmp_out_file, $tmp_xml_out, $xml_log);
         }
     }
-
  }
+ // generate html end and summary with number of passed and failed tests and succes rate
  html_end($number, $passed, $failed);
 ?>
