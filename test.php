@@ -6,7 +6,7 @@
 * Main modul to test code written in IPPcode22
 */
 
-include 'html_generator.php';
+include 'html_printer.php';
 // Global definitions of arguments
 $interpret = "interpret.py";                // default interpret
 $parse = "parse.php";                       // default parse 

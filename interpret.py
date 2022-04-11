@@ -419,7 +419,6 @@ def interpret(instructions_l, labels, input_f):
             data_to_write = ord(data_second[data_third])
 
         elif instruction.opcode == 'READ':
-            # TODO redo read
             read_input = ""
 
             if input_f != None:
