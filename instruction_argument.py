@@ -1,5 +1,6 @@
 import xml.etree.ElementTree as ET
 import sys, re
+# dictionary with all acceptable instructions and with number of their arguments
 correct_instructions = {"RETURN" : 0, "BREAK" : 0, "CREATEFRAME" : 0, "PUSHFRAME" : 0, "POPFRAME" : 0,
                         "CALL" : 1, "LABEL" : 1, "JUMP" : 1, "PUSHS" : 1, "WRITE" : 1, "EXIT" : 1,
                         "DPRINT" : 1, "DEFVAR" : 1, "POPS" : 1, "MOVE" : 2, "INT2CHAR" : 2, "TYPE" : 2,
@@ -7,26 +8,29 @@ correct_instructions = {"RETURN" : 0, "BREAK" : 0, "CREATEFRAME" : 0, "PUSHFRAME
                         "LT" : 3, "GT" : 3, "EQ" : 3, "AND" : 3, "OR" : 3, "STRI2INT" : 3, "CONCAT" : 3,
                         "GETCHAR" : 3, "SETCHAR" : 3, "JUMPIFEQ" : 3, "JUMPIFNEQ" : 3}
 
-correct_instruction_types = {"RETURN" : None, "BREAK" : None, "CREATEFRAME" : None, 
-                        "PUSHFRAME" : None, "POPFRAME" : None, "CALL" : ["label"], 
-                        "LABEL" : ["label"], "JUMP" : ["label"], "PUSHS" : ["symb"], 
+# dictionary with instructions and lists with their argument types
+correct_instruction_types = {"RETURN" : None, "BREAK" : None, "CREATEFRAME" : None,
+                        "PUSHFRAME" : None, "POPFRAME" : None, "CALL" : ["label"],
+                        "LABEL" : ["label"], "JUMP" : ["label"], "PUSHS" : ["symb"],
                         "WRITE" : ["symb"], "EXIT" : ["symb"], "DPRINT" : ["symb"],
                         "DEFVAR" : ["var"], "POPS" : ["var"], "MOVE" : ["var", "symb"],
-                        "INT2CHAR" : ["var","symb"], "TYPE" : ["var", "symb"], 
-                        "STRLEN" : ["var", "symb"], "NOT" : ["var", "symb"], 
-                        "READ": ["var", "type"], "ADD" : ["var", "symb", "symb"], 
+                        "INT2CHAR" : ["var","symb"], "TYPE" : ["var", "symb"],
+                        "STRLEN" : ["var", "symb"], "NOT" : ["var", "symb"],
+                        "READ": ["var", "type"], "ADD" : ["var", "symb", "symb"],
                         "SUB" : ["var", "symb", "symb"], "MUL" : ["var", "symb", "symb"],
-                        "IDIV" : ["var", "symb", "symb"], "LT" : ["var", "symb", "symb"], 
-                        "GT" : ["var", "symb", "symb"], "EQ" : ["var", "symb", "symb"], 
-                        "AND" : ["var", "symb", "symb"],  "OR" : ["var", "symb", "symb"], 
+                        "IDIV" : ["var", "symb", "symb"], "LT" : ["var", "symb", "symb"],
+                        "GT" : ["var", "symb", "symb"], "EQ" : ["var", "symb", "symb"],
+                        "AND" : ["var", "symb", "symb"],  "OR" : ["var", "symb", "symb"],
                         "STRI2INT" : ["var", "symb", "symb"], "CONCAT" : ["var", "symb", "symb"], 
                         "GETCHAR" : ["var", "symb", "symb"], "SETCHAR" : ["var", "symb", "symb"],
                         "JUMPIFEQ" : ["label", "symb", "symb"], "JUMPIFNEQ" : ["label", "symb", "symb"]}
-# TODO separete classes
+
+# Function to exit and print message to stderr
 def my_exit(message : str, exit_code : int):
     sys.stderr.write(message)
     sys.exit(exit_code)
 
+# class to represent instructions 
 class Instruction:
 
     def __init__(self, opcode : str, argument : list, order):
@@ -37,8 +41,8 @@ class Instruction:
     # for better debug
     def __str__(self):
         return self.opcode
-        #+ " " + " ".join(str(i) for i in self.arguments)
 
+    # check if instruction have correct number and type of arguments
     def check_instruction(self):
         postion = 0
         if self.opcode in correct_instruction_types:
@@ -53,7 +57,7 @@ class Instruction:
             return False
         return True
 
-
+# class to represent instruction arguments 
 class Argument:
 
     def __init__(self, typ, value, order : int):
@@ -77,6 +81,7 @@ class Argument:
     def __repr__(self):
         return self.typ
 
+    # help function used when checking if instruction have correct arguments types
     def assign_type(self, expected):
         if self.typ == "label":
             return "label"
@@ -87,6 +92,7 @@ class Argument:
         elif self.typ == "type":
             return "type"
 
+# class to represent and to keep all the frames together
 class Frames:
 
     def __init__(self):
@@ -94,9 +100,11 @@ class Frames:
         self.LF = []
         self.TF = None
 
+    # create temporary frame
     def create_tf(self):
         self.TF = dict()
 
+    # function to get data from frame specified in argument
     def get_data(self, arg):
         frame = arg.value.split("@",1)[0]
         variable = arg.value.split("@",1)[1]
@@ -124,6 +132,7 @@ class Frames:
         else:
             return None, 55
 
+    # function to write data to frame specified in frame
     def write_data(self, frame, variable, data_to_write):
         if frame == 'GF':
             self.GF[variable] = data_to_write
@@ -141,6 +150,7 @@ class Frames:
             return 55
         return 0
 
+# class to represent nil type
 class NIL:
 
     def __init__(self):
@@ -152,6 +162,7 @@ class NIL:
     def __repr__(self):
         return "nil"
 
+# class to check if xml input file was correctly formated
 class XML_checker:
 
     def __init__(self,source_data):
@@ -204,7 +215,8 @@ class XML_checker:
                 my_exit(f"Incorrect argument count for instruction {instr}\n", 32)
 
         return
-    # function to read instruction from given xml file
+
+    # function to read instruction from given xml file and return them in a list
     def read_instructions(self) -> list:
         instructions_l = [] # list of all instructions
         for child in self.root:

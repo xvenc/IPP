@@ -288,10 +288,12 @@ foreach ($dir as $file) {
 
             // check if parse failed
             if ($parse_ret_code != 0) {
-                html_parse_only($number, $path.".src",0,$parse_ret_code, "WRONG RC", "NOT RUN");
-                continue;
+                if ($parse_ret_code == $exp_ret_code) {
+                    html_parse_only($number, $path.".src",$exp_ret_code,$parse_ret_code, "no", "-");
+                    continue;
+                }
             } 
-            // if parse failed the code wont be interpreted
+            // if parse failed and ret code is the same as expected ret code the code wont be interpreted
             exec($int_command, $junk, $int_ret_code);
             if ($int_ret_code != 0 || $exp_ret_code != 0) {
                 html_int_only($number, $path.".src", $exp_ret_code, $int_ret_code,"no", "Wrong RC");

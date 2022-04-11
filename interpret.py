@@ -1,7 +1,11 @@
-import xml.etree.ElementTree as ET
+# interpret.py
+# Solution for 2. task for IPP 2021/2022
+# Author: Václav Korvas VUT FIT 2BIT (xkorva03)
+# Main modul to interpret code written in IPPcode22
 import sys, getopt, re
 from instruction_argument import *
 
+# Function to print help if the parametr help is set
 def help():
     print("Usage: \tpython3 iterpret.py [--help] [--source=file , --input=file]")
     print("--help:\t Prints help. Cannot be used with other options.")
@@ -9,11 +13,12 @@ def help():
     print("--source=file: \tFile with input used for interpretation of the code. If not set, intput read from STDIN")
     print("Atleast one of --source or --input needs to be set.")
 
+# Function to print message to stderr and exits with given return code
 def my_exit(message : str, exit_code : int):
     sys.stderr.write(message)
     sys.exit(exit_code)
 
-# function to check all arguments
+# function to check all arguments and to check if the combination of arguments was acceptable
 def check_args():
     input_f = None
     source_f = None
@@ -101,8 +106,9 @@ def get_label_index(argument, labels) -> int:
         my_exit(f"Label '{label_name}' doesnt exist\n", 52)
     return index
 
-nil = NIL()
-# read data if its constant
+nil = NIL() # special instance of "nil" type used in IPPcode22
+
+# read data from var or symbol if its constant(int,string,bool or nil)
 def data_from_const(arg):
     data = None
     if arg.typ == 'string':
@@ -138,6 +144,7 @@ def write_to_frame(data_to_write, argument, frames):
             my_exit(f"Given frame '{frame}' doesnt exist\n", code)
     return
 
+# help function used in read instruction to determine type of value
 def get_type(data) -> str:
     if data == None:
         return ""
@@ -150,6 +157,8 @@ def get_type(data) -> str:
     if data == nil:
         return "nil"
 
+# Function to return data read from instruction arguments
+# it reads data from frames, or from constants(int,nil, etc.)
 def get_data_from_arg(frames, instruction):
     data_first = None
     data_second = None
@@ -165,7 +174,7 @@ def get_data_from_arg(frames, instruction):
         if (arg.typ in ("int","string", "bool", "nil") and arg.order == 1):
             data_first = data_from_const(arg)
 
-        if (arg.order in (2,3)): 
+        if (arg.order in (2,3)):
             if (arg.typ == "var"):
                 data, code = frames.get_data(arg)
                 if code == 55:
@@ -179,24 +188,29 @@ def get_data_from_arg(frames, instruction):
                 data_second = data
             elif arg.order == 3:
                 data_third = data
-    
+
     return data_first, data_second, data_third
-    
+
+# main function to interpret given code, it contains one elif statement
+# with if for every single instruction, the big if switch runs in while loop
+# for all instructions in the instructions list
 def interpret(instructions_l, labels, input_f):
 
     frames = Frames() # all frames
     index = 0 # index of currently processed instruction
     instruction = None # currently processed instruction
     data_to_write = None # data to write to the frame
-    executed_instructions = 0 
-    nil_type = nil
+    executed_instructions = 0 # number of executed instruction used in instruction break
+    nil_type = nil # "nil" type to compare with read data if its nil
     data_stack = [] # 'stack' for pushed data
     call_stack = [] # stack of indexes when call and return functions are used
     first_read = True
-    data_first = None
-    data_second = None
-    data_third = None
+    # for example AND <var> <symb1> <symb2>
+    data_first = None # first data from instruction arguments (<var> from example)
+    data_second = None # second data from instruction arguments (<symb1> from example)
+    data_third = None # third data from instruction arguments (<symb2> from example)
 
+    # main loop to go through all instructions
     while index < len(instructions_l):
         instruction = instructions_l[index]
         index += 1
@@ -204,6 +218,7 @@ def interpret(instructions_l, labels, input_f):
         write_data = True
         data_first, data_second, data_third = get_data_from_arg(frames, instruction)
 
+        # 'if tree' to determine which instruction should we interpret
         if instruction.opcode == 'MOVE':
 
             data_to_write = data_second
@@ -588,9 +603,14 @@ def print_frame(frame, info : str):
 ## MAIN CODE
 
 input_f, source_f = check_args()
+# read lines from source file
 source_data = read_lines(source_f)
+# use Element tree library to check if source data are correctly formated
 root = XML_checker(source_data)
+# check if instructions are in order or if header is present or 
+# if they have correct number of arguments, etc.
 root.check_xml_elements()
+# read instructions from xml tree to a list for better manipulation
 instructions = root.read_instructions()
 check_argument_types(instructions)
 labels = find_labels(instructions)
