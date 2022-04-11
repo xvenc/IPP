@@ -2,8 +2,9 @@
 # Solution for 2. task for IPP 2021/2022
 # Author: Václav Korvas VUT FIT 2BIT (xkorva03)
 # Main modul to interpret code written in IPPcode22
+
 import sys, getopt, re
-from instruction_argument import *
+from classes import *
 
 # Function to print help if the parametr help is set
 def help():

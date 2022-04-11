@@ -1,4 +1,10 @@
 <?php
+/* 
+* test.php
+* Solution for 2. task for IPP 2021/2022
+* Author: Václav Korvas VUT FIT 2BIT (xkorva03)
+* Main modul to test code written in IPPcode22
+*/
 
 include 'html_generator.php';
 // Global definitions of arguments
@@ -233,8 +239,7 @@ foreach ($dir as $file) {
             $jexjar = $jex_dir."jexamxml.jar";
             $jexopt = $jex_dir."options";
 
-            # TODO change php -> php8.1
-            $command = "php {$parse} < {$path}.src > {$tmp_out_file} 2> /dev/null";
+            $command = "php8.1 {$parse} < {$path}.src > {$tmp_out_file} 2> /dev/null";
             exec($command, $junk, $parse_ret_code); 
            // compare exit codes
             if ($parse_ret_code != 0 || $exp_ret_code != 0) {
@@ -257,8 +262,8 @@ foreach ($dir as $file) {
             $int_ret_code = 0;
 
             // command to be executed
-            $command = "python3 {$interpret} --source={$path}.src --input={$in_file} > {$tmp_out_file} 2> /dev/null";
-            exec($command, $junk, $int_ret_code); # TODO mby check if exec didnt failed
+            $command = "python3.8 {$interpret} --source={$path}.src --input={$in_file} > {$tmp_out_file} 2> /dev/null";
+            exec($command, $junk, $int_ret_code); 
 
             // compare interpret return code with expected ret code
             if ($int_ret_code != 0 || $exp_ret_code != 0) {
@@ -279,9 +284,9 @@ foreach ($dir as $file) {
         } else {
             $int_ret_code = 0;
             $parse_ret_code = 0; 
-            # TODO change php -> php8.1
-            $parse_command = "php {$parse} < {$path}.src > {$tmp_xml_out} 2> /dev/null";
-            $int_command = "python3 {$interpret} --source={$tmp_xml_out} --input={$in_file} > {$tmp_out_file} 2> /dev/null";
+
+            $parse_command = "php8.1 {$parse} < {$path}.src > {$tmp_xml_out} 2> /dev/null";
+            $int_command = "python3.8 {$interpret} --source={$tmp_xml_out} --input={$in_file} > {$tmp_out_file} 2> /dev/null";
             $diff_command ="diff {$tmp_out_file} {$out_file} > /dev/null";
 
             exec($parse_command, $junk, $parse_ret_code);

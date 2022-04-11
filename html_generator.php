@@ -1,4 +1,10 @@
 <?php
+/* 
+* html_generator.php
+* Solution for 2. task for IPP 2021/2022
+* Author: Václav Korvas VUT FIT 2BIT (xkorva03)
+* Modul to generate html code if test failes or is successful
+*/
 $fail = array();
 
 // function to generate line in table like this:
