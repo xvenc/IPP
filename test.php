@@ -6,7 +6,7 @@
 * Main modul to test code written in IPPcode22
 */
 
-include 'html_printer.php';
+include 'src_test/html_printer.php';
 // Global definitions of arguments
 $interpret = "interpret.py";                // default interpret
 $parse = "parse.php";                       // default parse 
@@ -285,8 +285,8 @@ foreach ($dir as $file) {
             $int_ret_code = 0;
             $parse_ret_code = 0; 
 
-            $parse_command = "php8.1 {$parse} < {$path}.src > {$tmp_xml_out} 2> /dev/null";
-            $int_command = "python3.8 {$interpret} --source={$tmp_xml_out} --input={$in_file} > {$tmp_out_file} 2> /dev/null";
+            $parse_command = "php {$parse} < {$path}.src > {$tmp_xml_out} 2> /dev/null";
+            $int_command = "python {$interpret} --source={$tmp_xml_out} --input={$in_file} > {$tmp_out_file} 2> /dev/null";
             $diff_command ="diff {$tmp_out_file} {$out_file} > /dev/null";
 
             exec($parse_command, $junk, $parse_ret_code);
@@ -296,6 +296,10 @@ foreach ($dir as $file) {
                 if ($parse_ret_code == $exp_ret_code) {
                     html_parse_only($number, $path.".src",$exp_ret_code,$parse_ret_code, "no", "-");
                     continue;
+                } else {
+                    html_parse_only($number, $path.".src",$exp_ret_code,$parse_ret_code, "WRONG RC", "-");
+                    continue;
+ 
                 }
             } 
             // if parse failed and ret code is the same as expected ret code the code wont be interpreted

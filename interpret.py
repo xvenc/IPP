@@ -4,7 +4,7 @@
 # Main modul to interpret code written in IPPcode22
 
 import sys, getopt, re
-from classes import *
+from src_interpret.classes import *
 
 # Function to print help if the parametr help is set
 def help():
